@@ -12,6 +12,7 @@ import { T, isSolid, hasFlag, clearFlag } from '../world/tiles.js';
 import { dist, findPath, dirFromDelta } from '../world/pathfind.js';
 import { lineOfSight } from '../world/fov.js';
 import { deps } from './monster_deps.js';
+import { advanceAnim } from './anim.js';
 import {
   occupantAt, setOccupant, tileFree, stepAllowed, dirToward, turnDir, oppositeDir, dirDelta,
   nearestEnemy, actorsSeeEachOther, isAlly,
@@ -39,16 +40,14 @@ export function startAnim(game, m, name, totalTicks) {
   m.frame = 0;
   m.frameAcc = 0;
   m.frameTicks = Math.max(1, Math.round(totalTicks / frames));
+  m.actionFrame = name === 'attack' || name === 'cast' ? Math.min(frames - 1, m.speed.actionFrame) : -1;
+  m.actionDone = false;
+  m.animDone = false;
 }
 
-/** Advance the current animation; @returns {boolean} true when it wrapped */
+/** Advance the current animation (entities/anim.js); @returns {boolean} true when it wrapped */
 function stepAnim(m) {
-  m.frameAcc++;
-  if (m.frameAcc < m.frameTicks) return false;
-  m.frameAcc = 0;
-  m.frame++;
-  if (m.frame >= (m.frames || 1)) { m.frame = 0; return true; }
-  return false;
+  return advanceAnim(m);
 }
 
 /** Return to the idle pose. `justStepped` tells the walk gate what happened. */
@@ -214,6 +213,10 @@ export function monsterAttackPlayer(game, m, target = game.player, sureHit = fal
   const b = bal(game);
   let dmg = 0;
   if (target.kind === 'player') {
+    if (deps.monsterMeleeHit && !sureHit) {
+      const r = deps.monsterMeleeHit(game, m, target); // combat.js pipeline: block, thorns, knockback
+      return r.hit && !r.blocked;
+    }
     const r = deps.rollMonsterHitsPlayer(game, m, target);
     if (!sureHit && (!r.hit || r.blocked)) {
       game.bus.emit('sfx', { name: r.blocked ? 'block' : 'miss', x: target.tx, y: target.ty });
@@ -255,8 +258,11 @@ export function monsterShoot(game, m, target, spec = null) {
   return spawnMissile(game, full);
 }
 
-/** Wake + maybe stagger after taking `dmg`. Safe for combat.js to call directly. */
-export function staggerMonster(game, m, dmg, source = null) {
+/**
+ * Wake + (fallback) stagger after taking `dmg`. combat.js applyDamageToMonster
+ * already sets hitRecoverTicks; this covers damage applied by other paths.
+ */
+export function onMonsterDamaged(game, m, dmg, source = null) {
   if (m.dead) return;
   wakeMonster(game, m, source);
   m.aiState.lastHitTick = game.tick;
@@ -267,7 +273,7 @@ export function staggerMonster(game, m, dmg, source = null) {
 
 function resolvePending(game, m) {
   const p = m.pending;
-  if (!p || p.done || m.frame !== m.speed.actionFrame || m.frameAcc !== 0) return;
+  if (!p || p.done || m.frame !== m.actionFrame || m.frameAcc !== 0) return;
   p.done = true;
   const target = p.targetId === game.player.id ? game.player : game.level.monsters.find((o) => o.id === p.targetId);
   if (p.kind === 'attack') {
@@ -304,11 +310,11 @@ function regen(game, m) {
 function tickOne(game, m) {
   if (m.flash > 0) m.flash--;
   if (m.dead) {
-    if (m.anim === 'death' && m.frame < m.frames - 1) stepAnim(m);
+    stepAnim(m); // death holds its last frame (anim.js)
     return;
   }
   // Damage taken since the last tick (covers a combat.js that only edits hp).
-  if (m.hp < m.lastHp) staggerMonster(game, m, m.lastHp - m.hp);
+  if (m.hp < m.lastHp) onMonsterDamaged(game, m, m.lastHp - m.hp);
   m.lastHp = m.hp;
   if (m.hp <= 0) { killMonster(game, m, game.player); return; }
   if (m.lifeTicks > 0 && --m.lifeTicks === 0) { killMonster(game, m, null); return; }

@@ -33,7 +33,9 @@ export const missiles = {
   /** Accuracy penalty per tile travelled for arrows (ref: dist²/2 vs monsters, 2·dist vs player). */
   arrowDistPenalty: 1,
   /** Summoned ward stats: hp = base + perLevel·level (ref golem: 10·SLVL + maxMana/96). */
-  ward: { hpBase: 20, hpPerLevel: 10, dmgBase: 2, dmgPerLevel: 2, ac: 25, toHitBase: 40, toHitPerLevel: 5, lifetime: 1200 },
+  ward: { typeId: 'rust_sentinel', hpBase: 20, hpPerLevel: 10, dmgBase: 2, dmgPerLevel: 2, ac: 25, toHitBase: 40, toHitPerLevel: 5, lifetime: 1200, reach: 6 },
+  /** Skill `look.glyph` → draw_items.js drawMissile shape. */
+  glyphShape: { bolt: 'bolt', arrow: 'arrow', orb: 'orb', shard: 'shard', ring: 'ring', beam: 'bolt', flame: 'orb', swirl: 'ring', totem: 'orb', cross: 'orb' },
   /** Sfx names used on impact per element. */
   impactSfx: { phys: 'hit', fire: 'explode', cold: 'hit', shock: 'explode', arcane: 'cast' },
 };

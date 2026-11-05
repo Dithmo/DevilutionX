@@ -6,6 +6,7 @@
  *   left half:  character sheet | skills | quest log
  */
 import { worldPos, TILE_W, TILE_H } from '../camera.js';
+import { drawItemGlyph } from '../sprites.js';
 import { dirToScreen, mix, lighten } from '../draw_util.js';
 import { T, idx, inBounds } from '../../world/tiles.js';
 import { uiLayout } from './layout.js';
@@ -19,6 +20,9 @@ import { xpBounds, manaCostOf, canCast, formatNumber } from './hud.js';
 const EQUIP_ORDER = ['head', 'amulet', 'weapon', 'body', 'offhand', 'ring1', 'ring2'];
 const EQUIP_LABEL_KEYS = { head: 'slotHead', amulet: 'slotAmulet', weapon: 'slotWeapon', body: 'slotBody', offhand: 'slotOffhand', ring1: 'slotRing', ring2: 'slotRing' };
 const EQUIP_LABEL_FALLBACK = { head: 'Head', amulet: 'Amulet', weapon: 'Weapon', body: 'Body', offhand: 'Off hand', ring1: 'Ring', ring2: 'Ring' };
+const EQUIP_GLYPH = { head: 'helm', amulet: 'amulet', weapon: 'blade', body: 'chest', offhand: 'shield', ring1: 'ring', ring2: 'ring' };
+const EMPTY_SLOT_ALPHA = 0.28;
+const SLOT_LABEL_MIN_W = 50;
 const STATS = [
   { key: 'str', strKey: 'strength', fallback: 'Strength' },
   { key: 'mag', strKey: 'magic', fallback: 'Magic' },
@@ -43,7 +47,8 @@ const PAGE_BTN_H = 18;
 const QUEST_SIZE = 13;
 const QUEST_DETAIL_SIZE = 12;
 const QUEST_LINE_H = 15;
-const AUTOMAP_FLOOR_ALPHA = 0.5;
+const AUTOMAP_FLOOR_ALPHA = 0.6;
+const AUTOMAP_WALL_W = 1.5;
 const AUTOMAP_PLAYER_R = 5;
 const AUTOMAP_STAIR_R = 3;
 const MENU_BUTTON_H = 30;
@@ -113,7 +118,7 @@ export function drawInventory(ctx, game) {
     if (hover && ui.cursorItem) valid = slotAccepts(game, p, ui.cursorItem, slot);
     drawSlot(ctx, r, { game, item, hover, valid });
     if (item) drawItemInRect(ctx, item, r);
-    else drawText(ctx, str(game, EQUIP_LABEL_KEYS[slot], EQUIP_LABEL_FALLBACK[slot]), r.x + r.w / 2, r.y + r.h / 2 - 6, { align: 'center', size: 10, color: pal.textDim, game, maxW: r.w - 4 });
+    else drawEmptySlot(ctx, game, r, slot);
     registerHit(game, r, { kind: 'equipSlot', slot, item });
   }
 
@@ -130,6 +135,11 @@ export function drawInventory(ctx, game) {
       const h = (ui.cursorItem.size && ui.cursorItem.size.h) || 1;
       preview = { ...o, w, h, valid: canPlace(inv, ui.cursorItem, o.cx, o.cy) };
     }
+    const origins = new Map();
+    for (let i = 0; i < inv.cells.length; i++) {
+      const id = inv.cells[i];
+      if (id && !origins.has(id)) origins.set(id, { cx: i % inv.w, cy: Math.floor(i / inv.w) });
+    }
     for (let cy = 0; cy < g.rows; cy++) {
       for (let cx = 0; cx < g.cols; cx++) {
         const r = gridRect(panel, cx, cy);
@@ -137,7 +147,10 @@ export function drawInventory(ctx, game) {
         let valid = null;
         if (preview && cx >= preview.cx && cx < preview.cx + preview.w && cy >= preview.cy && cy < preview.cy + preview.h) valid = preview.valid;
         drawSlot(ctx, r, { game, item: null, hover: !!hoverId && id === hoverId && !preview, valid });
-        registerHit(game, r, { kind: 'invCell', cx, cy, item: id ? inv.items[id] || null : null });
+        const item = id ? inv.items[id] || null : null;
+        const o = item ? origins.get(id) : null;
+        const itemRect = item && o ? gridRect(panel, o.cx, o.cy, (item.size && item.size.w) || 1, (item.size && item.size.h) || 1) : null;
+        registerHit(game, r, { kind: 'invCell', cx, cy, item, itemRect });
       }
     }
     const drawn = new Set();
@@ -165,6 +178,18 @@ export function drawInventory(ctx, game) {
   const gy = panel.y + uiLayout.inventory.goldY;
   drawText(ctx, `${str(game, 'gold', 'Gold')}: ${formatNumber(p.gold || 0)}`, panel.x + 16, gy, { color: pal.gold, size: 13, game });
   if (ui.vendor) drawText(ctx, str(game, 'sellHint', 'Shift-click an item to sell'), panel.x + panel.w - 16, gy + 1, { align: 'right', color: pal.textDim, size: 11, game, maxW: 180 });
+}
+
+function drawEmptySlot(ctx, game, r, slot) {
+  const pal = palette(game);
+  const prev = ctx.globalAlpha;
+  ctx.globalAlpha = prev * EMPTY_SLOT_ALPHA;
+  const size = Math.max(14, Math.min(r.w, r.h) - 10);
+  drawItemGlyph(ctx, r.x + r.w / 2, r.y + r.h / 2 - (r.w >= SLOT_LABEL_MIN_W ? 6 : 0), { glyph: EQUIP_GLYPH[slot], color: pal.text, color2: pal.textDim }, size);
+  ctx.globalAlpha = prev;
+  if (r.w >= SLOT_LABEL_MIN_W) {
+    drawText(ctx, str(game, EQUIP_LABEL_KEYS[slot], EQUIP_LABEL_FALLBACK[slot]), r.x + r.w / 2, r.y + r.h - 15, { align: 'center', size: 10, color: pal.textDim, game, maxW: r.w - 4 });
+  }
 }
 
 /** Grid cell under a screen point (or null). */
@@ -535,7 +560,7 @@ export function drawAutomap(ctx, game) {
   ctx.beginPath();
   ctx.rect(area.x, area.y, area.w, area.h);
   ctx.clip();
-  ctx.lineWidth = 1;
+  ctx.lineWidth = AUTOMAP_WALL_W;
   for (let ty = 0; ty < tiles.h; ty++) {
     for (let tx = 0; tx < tiles.w; tx++) {
       const i = ty * tiles.w + tx;
@@ -600,7 +625,7 @@ export function drawAutomap(ctx, game) {
   ctx.fill();
   ctx.restore();
   const label = level.depth === 0 ? ((game.theme && game.theme.town && game.theme.town.name) || str(game, 'town', 'Town')) : `${str(game, 'depth', 'Depth')} ${level.depth}`;
-  drawText(ctx, label, area.w / 2, 8, { align: 'center', size: 14, color: pal.gold, game });
+  drawText(ctx, label, 12, 8, { size: 14, color: pal.gold, game });
 }
 
 /* ------------------------------------------------------------------ */

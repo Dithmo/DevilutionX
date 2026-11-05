@@ -40,3 +40,5 @@ export const SKILLS = Object.freeze({
   speedBonusCap: 0.6,
   degToRad: Math.PI / 180,
 });
+
+export default SKILLS;

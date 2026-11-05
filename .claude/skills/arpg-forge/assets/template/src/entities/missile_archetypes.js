@@ -7,9 +7,9 @@
  *   onExpire(game, ms)         range ran out
  * ref §11 for the source behaviours each one condenses.
  */
+import { isWalkable } from '../world/tiles.js';
 import { lineOfSight } from '../world/fov.js';
-import { dist } from '../world/pathfind.js';
-import { occupantAt, setOccupant, tileFree, findFreeTileNear, stepAllowed, dirDelta, enemiesOf, isAlly } from './monster_util.js';
+import { occupantAt, setOccupant, tileFree, findFreeTileNear, stepAllowed, dirDelta, isAlly } from './monster_util.js';
 import { monsterAttackPlayer, monsterStand, startAnim } from './monster_update.js';
 import { spawnMonster } from './monster.js';
 import { missileDamage, actorsInBlast, moveMissile, setVelocity, rotate, spawnMissile, canHit } from './missile.js';
@@ -125,12 +125,13 @@ export const ARCHETYPES = {
     spawn(game, ms, spec) {
       const c = bal(game).arch.chain;
       ms.state.jumps = spec.jumps !== undefined ? spec.jumps : c.jumps;
+      ms.state.jumpRadius = spec.radius || c.jumpRadius;
       ms.state.range0 = ms.range;
     },
     onHit(game, ms, actor, byId) {
       const c = bal(game).arch.chain;
       missileDamage(game, ms, actor);
-      const next = ms.state.jumps > 0 ? nearestTarget(game, ms, c.jumpRadius, true, byId) : null;
+      const next = ms.state.jumps > 0 ? nearestTarget(game, ms, ms.state.jumpRadius, true, byId) : null;
       if (!next) { ms.dead = true; return; }
       ms.state.jumps--;
       ms.dmgMin = Math.max(1, Math.round(ms.dmgMin * c.decay));
@@ -150,13 +151,12 @@ export const ARCHETYPES = {
     spawn(game, ms, spec) {
       const c = bal(game).arch.wall;
       const centre = ms.targetTile || { x: ms.tx + Math.round(ms.vx / (ms.speed || 1)) * 2, y: ms.ty + Math.round(ms.vy / (ms.speed || 1)) * 2 };
-      const n = spec.segments || spec.count || c.segments;
+      const n = spec.segments || (spec.length ? 2 * spec.length + 1 : 0) || spec.count || c.segments;
       const perp = dirDelta(((ms.dir + 2) % 8 + 8) % 8);
       const place = (x, y) => {
-        if (!tileFree(game.level, x, y, -1) && occupantAt(game.level, x, y) === 0) return false;
-        if (occupantAt(game.level, x, y) === 0 && !tileFree(game.level, x, y)) return false;
+        if (!isWalkable(game.level.tiles, x, y)) return false;
         ms.children.push(spawnMissile(game, {
-          ...spec, archetype: 'wallSeg', count: 1, from: { x, y }, range: spec.lifetime || c.lifetime, look: { ...c.look, ...(spec.look || {}) },
+          ...spec, archetype: 'wallSeg', count: 1, length: 0, from: { x, y }, range: spec.lifetime || spec.duration || c.lifetime, look: { ...c.look, ...(spec.look || {}) },
         }));
         return true;
       };
@@ -193,7 +193,7 @@ export const ARCHETYPES = {
       ms.vx = 0;
       ms.vy = 0;
       ms.radius = spec.radius || c.radius;
-      ms.range = spec.lifetime || spec.range || c.lifetime;
+      ms.range = spec.lifetime || spec.duration || spec.range || c.lifetime;
     },
     tick(game, ms, byId) {
       const c = bal(game).arch.groundAoe;
@@ -221,8 +221,10 @@ export const ARCHETYPES = {
       const m = ms.owner;
       const c = bal(game).arch.charge;
       if (!m || m.kind !== 'monster') { ms.dead = true; return; }
+      const n = Math.hypot(ms.vx, ms.vy) || 1;
+      const unit = n === 1 && ms.vx === 0 && ms.vy === 0 ? { x: 1, y: 0 } : { x: ms.vx / n, y: ms.vy / n };
       ms.speed = c.speedMult / Math.max(1, m.speed.walkTicksPerTile);
-      setVelocity(ms, { x: ms.vx === 0 && ms.vy === 0 ? 1 : ms.vx / (Math.hypot(ms.vx, ms.vy) || 1), y: ms.vy / (Math.hypot(ms.vx, ms.vy) || 1) });
+      setVelocity(ms, unit);
       ms.range = c.range;
       m.charging = true;
       m.dir = ms.dir;
@@ -273,10 +275,12 @@ export const ARCHETYPES = {
       const a = ms.owner;
       const c = bal(game).arch.blink;
       ms.dead = true;
+      ms.fizzled = true;
       if (!a || a.dead || !ms.targetTile) return;
       const t = ms.targetTile;
-      let dest = tileFree(game.level, t.x, t.y, a.id) && lineOfSight(game.level.tiles, a.tx, a.ty, t.x, t.y) ? t : findFreeTileNear(game.level, t.x, t.y, c.searchRadius);
+      const dest = tileFree(game.level, t.x, t.y, a.id) && lineOfSight(game.level.tiles, a.tx, a.ty, t.x, t.y) ? t : findFreeTileNear(game.level, t.x, t.y, c.searchRadius);
       if (!dest || (dest.x === a.tx && dest.y === a.ty)) return;
+      ms.fizzled = false;
       spark(game, a.tx + HALF, a.ty + HALF, ms.look);
       teleportActor(game, a, dest.x, dest.y);
       spark(game, dest.x + HALF, dest.y + HALF, ms.look);
@@ -288,21 +292,28 @@ export const ARCHETYPES = {
   summon: {
     spawn(game, ms, spec) {
       ms.dead = true;
+      ms.fizzled = true;
       const owner = ms.owner;
       const t = ms.targetTile || { x: ms.tx, y: ms.ty };
-      const typeId = spec.typeId || spec.special || (owner && owner.special);
-      if (!typeId) return;
       const friendly = spec.ally !== undefined ? spec.ally : !!(owner && isAlly(owner));
       const w = bal(game).ward;
+      const typeId = spec.typeId || spec.special || (owner && owner.special) || (friendly ? w.typeId : null);
+      if (!typeId) return;
       const lvl = ms.level || 1;
       const opts = { ally: friendly, ownerId: owner ? owner.id : 0, noLoot: true };
       if (friendly) {
-        opts.lifeTicks = spec.lifetime || w.lifetime;
+        opts.lifeTicks = spec.lifetime || spec.duration || w.lifetime;
         opts.stats = { hp: w.hpBase + w.hpPerLevel * lvl, dmgMin: w.dmgBase + w.dmgPerLevel * lvl, dmgMax: w.dmgBase + 2 * w.dmgPerLevel * lvl, ac: w.ac, toHit: w.toHitBase + w.toHitPerLevel * lvl };
       }
       const m = spawnMonster(game, typeId, t.x, t.y, opts);
       if (!m) return;
-      if (friendly) { m.ai = 'ally'; m.awake = true; }
+      ms.fizzled = false;
+      if (friendly) {
+        m.ai = 'ally';
+        m.awake = true;
+        m.reach = spec.radius || w.reach;
+        if (ms.dmgMax > 0) m.missile = { archetype: 'bolt', element: ms.element, dmg: [ms.dmgMin, ms.dmgMax] }; // ward spits the skill's bolt
+      }
       ms.children.push(m);
       spark(game, m.tx + HALF, m.ty + HALF, ms.look);
       game.bus.emit('sfx', { name: 'cast', x: m.tx, y: m.ty });
@@ -315,5 +326,4 @@ export const ARCHETYPES = {
   },
 };
 
-export { enemiesOf, dist };
 export default ARCHETYPES;

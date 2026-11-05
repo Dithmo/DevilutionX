@@ -42,10 +42,11 @@ export const LOOT = Object.freeze({
   goldPerLevelRand: 10,
   goldDropCap: 5000,            // single pile cap
   goldStack: 5000,              // reference stack size (informational; we keep a counter)
-  goldPlayerCap: 250000,        // counter cap = 50 stacks × 5000 (40 cells + stash headroom)
+  goldPlayerCap: 100000,        // counter cap (balance/economy.js maxGold wins when present)
 
   // --- potions (§1.8 RestorePartialLife) ---
-  potionRandFrac: 0.5,          // amount = max*value + rand(0, max*value*0.5)  (ref: max/8 + rand(max/4))
+  partialRestoreBaseDiv: 8,     // partial potion: max/8 + rand(max/4)  (ref RestorePartialLife)
+  partialRestoreRandDiv: 4,
 
   // --- grid / belt / stash (§5) ---
   gridW: 10,
@@ -77,4 +78,13 @@ export const LOOT = Object.freeze({
 
   // --- tooltip ---
   tooltipMaxAffixes: 6,
+
+  // --- class row used when the theme has no entry for player.classId (reference "melee" column) ---
+  fallbackClass: {
+    id: 'fallback', base: { str: 30, mag: 10, dex: 20, vit: 25 }, max: { str: 250, mag: 50, dex: 60, vit: 100 },
+    startLife: 20, startMana: 0, lifePerLevel: 2, manaPerLevel: 1, lifePerVit: 2, manaPerMag: 1, // life = startLife + lifePerLevel*(lvl-1) + lifePerVit*vit
+    toHitBase: 70, blockBase: 30, weaponPref: 'melee', skillPool: [],
+  },
 });
+
+export default LOOT;

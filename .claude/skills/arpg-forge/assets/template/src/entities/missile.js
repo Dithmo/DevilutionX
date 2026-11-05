@@ -9,7 +9,7 @@ import { isSolid } from '../world/tiles.js';
 import { dirFromDelta } from '../world/pathfind.js';
 import { deps } from './monster_deps.js';
 import { occupantAt, actorsById, isAlly } from './monster_util.js';
-import { staggerMonster } from './monster_update.js';
+import { onMonsterDamaged } from './monster_update.js';
 import { killMonster } from './monster.js';
 import { ARCHETYPES } from './missile_archetypes.js';
 
@@ -56,12 +56,19 @@ export function setVelocity(ms, unit) {
   if (ms.dir < 0) ms.dir = 0;
 }
 
+/** Tile {x,y} (integers) or world {x,y} (centre +0.5) → world point. */
+function toWorld(p) {
+  return { x: Number.isInteger(p.x) ? p.x + HALF : p.x, y: Number.isInteger(p.y) ? p.y + HALF : p.y };
+}
+
 /**
  * Create a missile. spec: `{archetype, owner, from:{x,y}, to:{x,y}|dir, skillId, level,
- * dmg:{min,max}, element, look, speed?, range?, radius?, count?, spread?, pierce?, typeId?, ally?}`.
- * Instant archetypes (nova, wall, blink, summon) do their work immediately and return a dead
- * missile whose `children` lists what they spawned.
- * @returns {object} Missile
+ * dmg:{min,max}, element, look, speed?, range?|duration?, radius?, count?, spread?, pierce?,
+ * length? (wall arm), typeId? (summon), ally?}`. `from`/`to` may be integer tiles or world
+ * points; 0 / missing numeric fields fall back to data/balance/missiles.js. Instant
+ * archetypes (nova, wall, blink, summon) act immediately and return a dead missile whose
+ * `children` lists what they spawned.
+ * @returns {object|null} Missile, or null when the effect fizzled (nothing happened)
  */
 export function spawnMissile(game, spec) {
   const b = bal(game);
@@ -69,34 +76,38 @@ export function spawnMissile(game, spec) {
   const handler = ARCHETYPES[spec.archetype] || ARCHETYPES.bolt;
   const owner = spec.owner || null;
   const level = game.level;
-  const from = spec.from || (owner ? { x: owner.tx, y: owner.ty } : { x: 0, y: 0 });
+  const from = toWorld(spec.from || (owner ? { x: owner.tx, y: owner.ty } : { x: 0, y: 0 }));
+  const to = spec.to && typeof spec.to === 'object' ? toWorld(spec.to) : spec.to;
   const ownerKind = spec.ownerKind || (owner ? (owner.kind === 'player' ? 'player' : 'monster') : 'trap');
   const dmg = spec.dmg || { min: 0, max: 0 };
+  const look = { ...(arch.look || {}), ...(spec.look || {}) };
+  if (!look.shape && look.glyph) look.shape = b.glyphShape[look.glyph] || (arch.look && arch.look.shape) || 'bolt';
   const ms = {
     id: nextId(game), archetype: spec.archetype, ownerKind, ownerId: owner ? owner.id : 0, owner,
-    friendly: owner ? isAlly(owner) : null, skillId: spec.skillId || null,
-    x: from.x + HALF, y: from.y + HALF, tx: from.x, ty: from.y, vx: 0, vy: 0, dir: owner ? owner.dir : 0,
-    speed: spec.speed !== undefined ? spec.speed : arch.speed || 0,
-    range: spec.range !== undefined ? spec.range : arch.range !== undefined ? arch.range : b.defaultRange, dist: 0,
+    friendly: owner ? isAlly(owner) : ownerKind === 'player' ? true : null, skillId: spec.skillId || null,
+    x: from.x, y: from.y, tx: Math.floor(from.x), ty: Math.floor(from.y), vx: 0, vy: 0, dir: owner ? owner.dir : 0,
+    speed: spec.speed || arch.speed || 0,
+    range: spec.range || spec.duration || arch.range || arch.lifetime || b.defaultRange, dist: 0,
     dmgMin: dmg.min, dmgMax: dmg.max, element: spec.element || 'phys', level: spec.level || 1,
-    hitSet: new Set(), pierce: spec.pierce !== undefined ? spec.pierce : spec.archetype === 'pierce',
-    radius: spec.radius !== undefined ? spec.radius : arch.radius || 0,
-    state: {}, look: { ...(arch.look || {}), ...(spec.look || {}) }, dead: false, spec, children: [],
-    targetTile: typeof spec.to === 'object' && spec.to ? { x: spec.to.x, y: spec.to.y } : null,
+    hitSet: new Set(), pierce: spec.pierce !== undefined ? !!spec.pierce : spec.archetype === 'pierce',
+    radius: spec.radius || arch.radius || 0,
+    state: {}, look, dead: false, fizzled: false, spec, children: [],
+    targetTile: to && typeof to === 'object' ? { x: Math.floor(to.x), y: Math.floor(to.y) } : null,
   };
   const count = spec.count || 1;
-  const aim = aimVector(from, spec.to, owner);
-  if (count > 1 && ms.speed > 0) {
+  const aim = aimVector(from, to, owner);
+  if (count > 1 && ms.speed > 0 && !handler.spawn) {
     const spread = (spec.spread || 1) * SPREAD_STEP;
     for (let i = 0; i < count; i++) {
       const child = spawnMissile(game, { ...spec, count: 1, aimUnit: rotate(aim, spread * (i - (count - 1) / 2)) });
-      ms.children.push(child);
+      if (child) ms.children.push(child);
     }
     ms.dead = true;
-    return ms;
+    return ms.children.length ? ms : null;
   }
   setVelocity(ms, spec.aimUnit || aim);
   if (handler.spawn) handler.spawn(game, ms, spec);
+  if (ms.fizzled) return null;
   if (!ms.dead) level.missiles.push(ms);
   return ms;
 }
@@ -117,7 +128,14 @@ export function missileDamage(game, ms, actor, scale = 1) {
   const owner = ms.owner;
   const source = owner || ms;
   let dmg = 0;
-  if (actor.kind === 'player') {
+  const spec = { dist: ms.dist, dmg: { min: Math.max(1, Math.round(ms.dmgMin * scale)), max: Math.max(1, Math.round(ms.dmgMax * scale)) }, element: ms.element, spell: ms.archetype !== 'arrow' };
+  if (actor.kind === 'player' && owner && owner.kind === 'monster' && deps.monsterMissileHit) {
+    dmg = deps.monsterMissileHit(game, owner, actor, spec).dealt; // combat.js pipeline (block, resist, floats)
+  } else if (actor.kind === 'monster' && owner && owner.kind === 'player' && deps.playerMissileHit) {
+    dmg = deps.playerMissileHit(game, owner, actor, spec).dealt;
+    onMonsterDamaged(game, actor, dmg, owner);
+    actor.lastHp = actor.hp;
+  } else if (actor.kind === 'player') {
     if (ms.archetype === 'arrow' && owner && owner.kind === 'monster') {
       const r = deps.rollMonsterHitsPlayer(game, owner, actor);
       if (!r.hit || r.blocked) { game.bus.emit('sfx', { name: r.blocked ? 'block' : 'miss', x: actor.tx, y: actor.ty }); return 0; }
@@ -134,11 +152,11 @@ export function missileDamage(game, ms, actor, scale = 1) {
     } else dmg = game.rng.range(ms.dmgMin, ms.dmgMax);
     dmg = Math.max(1, Math.round(dmg * scale));
     deps.applyDamageToMonster(game, actor, dmg, ms.element, source);
-    staggerMonster(game, actor, dmg, owner);
+    onMonsterDamaged(game, actor, dmg, owner);
     actor.lastHp = actor.hp;
     if (actor.hp <= 0 && !actor.dead) killMonster(game, actor, owner);
   }
-  game.bus.emit('sfx', { name: b.impactSfx[ms.element] || 'hit', x: actor.tx, y: actor.ty });
+  if (dmg > 0) game.bus.emit('sfx', { name: b.impactSfx[ms.element] || 'hit', x: actor.tx, y: actor.ty });
   return dmg;
 }
 

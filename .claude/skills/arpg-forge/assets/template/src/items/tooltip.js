@@ -21,6 +21,12 @@ const STAT_NAMES = { str: 'Str', dex: 'Dex', mag: 'Mag' };
  * @param {object} [palette] theme palette (rarity colours); defaults built in
  */
 export function itemTooltipLines(item, player, palette = DEFAULT_PALETTE) {
+  if (item && item.theme && item.player !== undefined) { // called as (game, item)
+    const game = item;
+    item = player;
+    player = game.player;
+    palette = (game.theme && game.theme.palette) || DEFAULT_PALETTE;
+  }
   const pal = { ...DEFAULT_PALETTE, ...palette, rarity: { ...DEFAULT_PALETTE.rarity, ...(palette.rarity || {}) } };
   const lines = [];
   const known = item.identified || item.quality === 'normal';

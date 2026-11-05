@@ -108,3 +108,20 @@ export const LIGHT_RADIUS_MAX = 15;
 
 /** Starting gold for every class (reference: 100). */
 export const START_GOLD = 100;
+
+/** Merged object for `game.balance.progression` (data/balance/index.js imports the default). */
+const progression = {
+  maxLevel: MAX_LEVEL, statPointsPerLevel: STAT_POINTS_PER_LEVEL, maxSkillLevel: MAX_SKILL_LEVEL,
+  maxResist: MAX_RESIST, lifeManaCap: LIFE_MANA_CAP, statCap: STAT_CAP,
+  xpTable: XP_TABLE, xpThreshold, xpForMonster,
+  xpCapThresholdDiv: XP_CAP_THRESHOLD_DIV, xpCapPerLevel: XP_CAP_PER_LEVEL, xpLevelGapDiv: XP_LEVEL_GAP_DIV,
+  partialRestoreBaseDiv: PARTIAL_RESTORE_BASE_DIV, partialRestoreRandDiv: PARTIAL_RESTORE_RAND_DIV,
+  tomeReqScalePerLevel: TOME_REQ_SCALE_PER_LEVEL, manaRegen: MANA_REGEN,
+  walkTicksPerTile: WALK_TICKS_PER_TILE, baseMoveSpeed: BASE_MOVE_SPEED, walkSpeedPctDiv: WALK_SPEED_PCT_DIV,
+  maxMoveSpeedMult: MAX_MOVE_SPEED_MULT, repathWaitTicks: REPATH_WAIT_TICKS, maxRepathTries: MAX_REPATH_TRIES,
+  playerPathMaxNodes: PLAYER_PATH_MAX_NODES, arrivalInvulnTicks: ARRIVAL_INVULN_TICKS,
+  deathHoldTicks: DEATH_HOLD_TICKS, deathGoldLossFrac: DEATH_GOLD_LOSS_FRAC, respawnHp: RESPAWN_HP,
+  lightRadiusDefault: LIGHT_RADIUS_DEFAULT, lightRadiusMin: LIGHT_RADIUS_MIN, lightRadiusMax: LIGHT_RADIUS_MAX,
+  startGold: START_GOLD,
+};
+export default progression;

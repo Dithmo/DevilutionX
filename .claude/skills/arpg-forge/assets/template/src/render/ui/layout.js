@@ -29,7 +29,8 @@ const VENDOR_H = 420;
 const DIALOGUE_W = 640;
 const DIALOGUE_H = 220;
 const MENU_W = 300;
-const MENU_H = 330;
+const MENU_H = 320;
+const EQUIP_SHIFT = 10; // keeps the head slot clear of the panel title
 
 export const uiLayout = Object.freeze({
   viewW: VIEW_W,
@@ -42,7 +43,7 @@ export const uiLayout = Object.freeze({
   leftButtons: { x: 112, y: HUD_Y + 8, w: BUTTON_W, h: BUTTON_H, gap: BUTTON_GAP },
   /** 2 rows: inventory, skills */
   rightButtons: { x: 636, y: HUD_Y + 8, w: BUTTON_W, h: BUTTON_H, gap: BUTTON_GAP },
-  levelUpButton: { x: 112, y: HUD_Y - 26, w: BUTTON_W, h: 18 },
+  levelUpButton: { x: 792, y: HUD_Y - 26, w: BUTTON_W, h: 18 },
   infoBox: { x: CENTRE_X, y: HUD_Y + 6, w: CENTRE_W, h: 46 },
   belt: { x: CENTRE_X + 4, y: HUD_Y + 58, cell: BELT_CELL, gap: BELT_GAP, count: 8 },
   hotkeys: { x: 636, y: HUD_Y + 58, cell: BELT_CELL, gap: BELT_GAP, count: 4 },
@@ -53,22 +54,22 @@ export const uiLayout = Object.freeze({
   rightPanel: { x: VIEW_W - SIDE_W, y: SIDE_Y, w: SIDE_W, h: SIDE_H },
   vendor: { x: 0, y: 5, w: VENDOR_W, h: VENDOR_H },
   dialogue: { x: (VIEW_W - DIALOGUE_W) / 2, y: Math.floor((HUD_Y - DIALOGUE_H) / 2), w: DIALOGUE_W, h: DIALOGUE_H },
-  menu: { x: (VIEW_W - MENU_W) / 2, y: Math.floor((VIEW_H - MENU_H) / 2), w: MENU_W, h: MENU_H },
+  menu: { x: (VIEW_W - MENU_W) / 2, y: Math.floor((HUD_Y - MENU_H) / 2), w: MENU_W, h: MENU_H },
   monsterBar: { y: 12, w: 280, h: 14 },
   cell: CELL,
   /** Inventory panel, panel-local rects. */
   inventory: {
-    grid: { x: 15, y: 236, cols: 10, rows: 4 },
+    grid: { x: 15, y: 236 + EQUIP_SHIFT, cols: 10, rows: 4 },
     equip: {
-      head: { x: 132, y: 16, w: 58, h: 58 },
-      amulet: { x: 205, y: 46, w: 28, h: 28 },
-      weapon: { x: 17, y: 89, w: 58, h: 87 },
-      body: { x: 132, y: 89, w: 58, h: 87 },
-      offhand: { x: 248, y: 89, w: 58, h: 87 },
-      ring1: { x: 47, y: 191, w: 28, h: 28 },
-      ring2: { x: 248, y: 191, w: 28, h: 28 },
+      head: { x: 132, y: 16 + EQUIP_SHIFT, w: 58, h: 58 },
+      amulet: { x: 205, y: 46 + EQUIP_SHIFT, w: 28, h: 28 },
+      weapon: { x: 17, y: 89 + EQUIP_SHIFT, w: 58, h: 87 },
+      body: { x: 132, y: 89 + EQUIP_SHIFT, w: 58, h: 87 },
+      offhand: { x: 248, y: 89 + EQUIP_SHIFT, w: 58, h: 87 },
+      ring1: { x: 47, y: 191 + EQUIP_SHIFT, w: 28, h: 28 },
+      ring2: { x: 248, y: 191 + EQUIP_SHIFT, w: 28, h: 28 },
     },
-    goldY: 366,
+    goldY: 366 + EQUIP_SHIFT,
   },
   character: { rowH: 17, labelX: 14, baseX: 196, nowX: 268, plusX: 226, plusW: 20, plusH: 14 },
   skills: { rowY: 30, rowH: 46, perPage: 7, iconSize: 36 },

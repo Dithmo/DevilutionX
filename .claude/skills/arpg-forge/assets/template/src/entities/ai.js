@@ -300,10 +300,12 @@ export const AI = {
   /** Player-allied ward: attack the nearest hostile, otherwise follow the player. ref §7.21 */
   ally(game, m) {
     const c = cfg(game, 'ally');
-    const near = nearestEnemy(game, m, c.searchRadius, false);
+    const near = nearestEnemy(game, m, Math.max(c.searchRadius, m.reach || 0), false);
     if (near) {
       m.mode = near.d <= ADJ ? 'attack' : 'chase';
       if (near.d <= ADJ) { monsterBeginAttack(game, m, near.ent); return; }
+      if (m.missile && near.d <= (m.reach || c.shootRange) && canShoot(game, m, near.ent)) { monsterBeginShoot(game, m, near.ent); return; }
+      if (m.reach && near.d > m.reach) return; // turret-style wards hold position
       approachOrWait(game, m, { x: near.ent.tx, y: near.ent.ty });
       return;
     }

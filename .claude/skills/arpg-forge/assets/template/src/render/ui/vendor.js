@@ -134,7 +134,7 @@ export function drawVendor(ctx, game) {
   }
 }
 
-function listRows(game, r, items, mx, my, kind, priceOf, priceColorFn) {
+function listRows(ctx, game, r, items, mx, my, kind, priceOf, priceColorFn) {
   const ui = game.ui;
   const pal = palette(game);
   const pages = Math.max(1, Math.ceil(items.length / ROWS_PER_PAGE));
@@ -196,7 +196,7 @@ function drawBuyTab(ctx, game, npc, r, mx, my) {
   const pal = palette(game);
   const gold = game.player ? game.player.gold || 0 : 0;
   const stock = (npc && npc.stock) || [];
-  listRows(game, r, stock, mx, my, 'vendorItem', buyPrice, (price) => (price > gold ? pal.danger : pal.gold));
+  listRows(ctx, game, r, stock, mx, my, 'vendorItem', buyPrice, (price) => (price > gold ? pal.danger : pal.gold));
 }
 
 function drawSellTab(ctx, game, npc, r, mx, my) {
@@ -214,7 +214,7 @@ function drawSellTab(ctx, game, npc, r, mx, my) {
       items.push(inv.items[id]);
     }
   }
-  listRows(game, r, items, mx, my, 'sellItem', sellPrice, () => pal.gold);
+  listRows(ctx, game, r, items, mx, my, 'sellItem', sellPrice, () => pal.gold);
   drawText(ctx, str(game, 'sellHint', 'Shift-click an item to sell'), r.x + r.w - 16, r.y + TAB_Y + 5, { align: 'right', color: pal.textDim, size: 11, game, maxW: 240 });
 }
 

@@ -124,6 +124,29 @@ function connect(node, tiles, rng, cfg) {
   return rng.chance(HALF_PCT) ? ra : rb;
 }
 
+/** Remove dead-end corridor stubs and isolated wall nubs left by the random walk. */
+function tidyCorridors(tiles) {
+  const floorN4 = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => isFloor(tiles, x + dx, y + dy)).length;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let y = 1; y < tiles.h - 1; y++) {
+      for (let x = 1; x < tiles.w - 1; x++) {
+        const i = idx(tiles, x, y);
+        if (tiles.floor[i] !== CORRIDOR_FLOOR || floorN4(x, y) > 1) continue;
+        tiles.floor[i] = 0;
+        changed = true;
+      }
+    }
+  }
+  for (let y = 1; y < tiles.h - 1; y++) {
+    for (let x = 1; x < tiles.w - 1; x++) {
+      const i = idx(tiles, x, y);
+      if (tiles.floor[i] === 0 && floorN4(x, y) >= 3) tiles.floor[i] = CORRIDOR_FLOOR;
+    }
+  }
+}
+
 /** A corridor tile on a room's wall ring that forms a proper 1-wide doorway. */
 function doorwayAt(tiles, room, x, y) {
   if (!isFloor(tiles, x, y) || tiles.floor[idx(tiles, x, y)] !== CORRIDOR_FLOOR) return false;
@@ -182,6 +205,7 @@ export function generateRooms(rng, w, h, opts = {}) {
     if (a === b || Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > cfg.extraMaxDist) continue;
     carveL(tiles, rng, pointIn(a, rng), pointIn(b, rng));
   }
+  tidyCorridors(tiles);
   sprinkleFloor(tiles, rng, ROOM_FLOOR, ROOM_FLOOR_ALT, cfg.floorAltPct);
   raiseWalls(tiles, WALL_STYLE);
   for (const room of rooms) {

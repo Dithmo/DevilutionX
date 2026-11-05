@@ -84,17 +84,17 @@ export const uniques = [
     effects: { allStats: 5, lightRadius: 3, resAll: 15, toHit: 10, durability: 50 }, look: { glyph: 'ring', color: GOLD, color2: '#f0f0ff' } },
 ];
 
-/** Consumables. belt=true may sit on the quick belt. (ref: heal 1/50, full heal 1/150, mana 1/50, rejuv 3/120, full rejuv 7/600, elixirs 15–20/5000, identify 1/100, portal 4/200) */
+/** Consumables. belt=true may sit on the quick belt. heal/mana/rejuv `value`: undefined = reference partial (max/8 + rand(max/4)), number = percent of max. (ref: heal 1/50, full heal 1/150, mana 1/50, rejuv 3/120, full rejuv 7/600, elixirs 15–20/5000, identify 1/100, portal 4/200) */
 const FLASK = (color) => ({ glyph: 'flask', color: '#e8e8f0', color2: color });
 const potions = [
-  { id: 'c_minor_heal', name: 'Minor Healing Draught', kind: 'potion', effect: { type: 'heal', value: 0.15 }, level: 1, price: 25, belt: true, look: FLASK('#c03030'), dropWeight: 6 },
-  { id: 'c_heal', name: 'Healing Draught', kind: 'potion', effect: { type: 'heal', value: 0.3 }, level: 3, price: 50, belt: true, look: FLASK('#e02020'), dropWeight: 5 },
-  { id: 'c_full_heal', name: 'Full Healing Draught', kind: 'potion', effect: { type: 'heal', value: 1 }, level: 7, price: 150, belt: true, look: FLASK('#ff4040'), dropWeight: 2 },
-  { id: 'c_minor_mana', name: 'Minor Mana Draught', kind: 'potion', effect: { type: 'mana', value: 0.15 }, level: 1, price: 25, belt: true, look: FLASK('#3040c0'), dropWeight: 6 },
-  { id: 'c_mana', name: 'Mana Draught', kind: 'potion', effect: { type: 'mana', value: 0.3 }, level: 3, price: 50, belt: true, look: FLASK('#2030e0'), dropWeight: 5 },
-  { id: 'c_full_mana', name: 'Full Mana Draught', kind: 'potion', effect: { type: 'mana', value: 1 }, level: 7, price: 150, belt: true, look: FLASK('#4060ff'), dropWeight: 2 },
-  { id: 'c_rejuv', name: 'Rejuvenation Draught', kind: 'potion', effect: { type: 'rejuv', value: 0.3 }, level: 5, price: 120, belt: true, look: FLASK('#c040c0'), dropWeight: 2 },
-  { id: 'c_full_rejuv', name: 'Full Rejuvenation Draught', kind: 'potion', effect: { type: 'rejuv', value: 1 }, level: 10, price: 600, belt: true, look: FLASK('#ff60ff'), dropWeight: 1 },
+  { id: 'c_minor_heal', name: 'Minor Healing Draught', kind: 'potion', effect: { type: 'heal' }, level: 1, price: 25, belt: true, look: FLASK('#c03030'), dropWeight: 6 },
+  { id: 'c_heal', name: 'Healing Draught', kind: 'potion', effect: { type: 'heal', value: 50 }, level: 3, price: 50, belt: true, look: FLASK('#e02020'), dropWeight: 5 },
+  { id: 'c_full_heal', name: 'Full Healing Draught', kind: 'potion', effect: { type: 'heal', value: 100 }, level: 7, price: 150, belt: true, look: FLASK('#ff4040'), dropWeight: 2 },
+  { id: 'c_minor_mana', name: 'Minor Mana Draught', kind: 'potion', effect: { type: 'mana' }, level: 1, price: 25, belt: true, look: FLASK('#3040c0'), dropWeight: 6 },
+  { id: 'c_mana', name: 'Mana Draught', kind: 'potion', effect: { type: 'mana', value: 50 }, level: 3, price: 50, belt: true, look: FLASK('#2030e0'), dropWeight: 5 },
+  { id: 'c_full_mana', name: 'Full Mana Draught', kind: 'potion', effect: { type: 'mana', value: 100 }, level: 7, price: 150, belt: true, look: FLASK('#4060ff'), dropWeight: 2 },
+  { id: 'c_rejuv', name: 'Rejuvenation Draught', kind: 'potion', effect: { type: 'rejuv', value: 50 }, level: 5, price: 120, belt: true, look: FLASK('#c040c0'), dropWeight: 2 },
+  { id: 'c_full_rejuv', name: 'Full Rejuvenation Draught', kind: 'potion', effect: { type: 'rejuv', value: 100 }, level: 10, price: 600, belt: true, look: FLASK('#ff60ff'), dropWeight: 1 },
   { id: 'c_elixir_str', name: 'Elixir of Sinew', kind: 'elixir', effect: { type: 'stat', stat: 'str', value: 1 }, level: 15, price: 5000, belt: false, look: FLASK('#e0a040'), dropWeight: 0.2 },
   { id: 'c_elixir_mag', name: 'Elixir of Insight', kind: 'elixir', effect: { type: 'stat', stat: 'mag', value: 1 }, level: 15, price: 5000, belt: false, look: FLASK('#40c0e0'), dropWeight: 0.2 },
   { id: 'c_elixir_dex', name: 'Elixir of Grace', kind: 'elixir', effect: { type: 'stat', stat: 'dex', value: 1 }, level: 15, price: 5000, belt: false, look: FLASK('#60e060'), dropWeight: 0.2 },

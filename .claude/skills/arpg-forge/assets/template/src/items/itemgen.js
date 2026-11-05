@@ -195,7 +195,7 @@ function rollDropDurability(rng, item) {
  * @param {object} game
  * @param {{level:number, quality?:'any'|'normal'|'magic'|'rare'|'unique'|'good', baseId?:string,
  *          onlyGood?:boolean, source?:'monster'|'unique'|'boss'|'chest'|'floor'|'vendor'|'quest',
- *          pool?:'any'|'equipment'|'consumable', seed?:number, classId?:string}} opts
+ *          pool?:'any'|'equipment'|'consumable', seed?:number, classId?:string, uniqueId?:string}} opts
  * @returns {object|null} Item (null only when no base qualifies)
  */
 export function generateItem(game, opts = {}) {
@@ -208,8 +208,10 @@ export function generateItem(game, opts = {}) {
   const pool = opts.pool || 'any';
 
   // --- base selection ---
-  let base = opts.baseId ? baseById(game, opts.baseId) : null;
-  let consumable = opts.baseId ? consumableById(game, opts.baseId) : null;
+  const forcedUnique = opts.uniqueId ? t.uniques.find((x) => x.id === opts.uniqueId) : null;
+  const baseId = opts.baseId || (forcedUnique && forcedUnique.baseId);
+  let base = baseId ? baseById(game, baseId) : null;
+  let consumable = baseId ? consumableById(game, baseId) : null;
   if (!base && !consumable) {
     const minLevel = onlyGood ? Math.floor(ilvl / LOOT.onlyGoodMinLevelDivisor) : 0;
     const rows = [];
@@ -232,6 +234,13 @@ export function generateItem(game, opts = {}) {
   const item = instantiateBase(game, rng, base);
   item.seed = seed;
   if (item.slot === 'quest' || quality === 'normal') return item;
+  if (opts.uniqueId) {
+    const u = t.uniques.find((x) => x.id === opts.uniqueId);
+    if (u) {
+      applyUnique(item, u);
+      return item;
+    }
+  }
 
   // --- quality roll (GetItemBLevel) ---
   const boss = opts.source === 'unique' || opts.source === 'boss';

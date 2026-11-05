@@ -44,7 +44,8 @@ const stubs = {
 
 /** Names each module contributes. */
 const SOURCES = [
-  { path: './combat.js', names: ['rollPlayerHitsMonster', 'rollMonsterHitsPlayer', 'applyDamageToMonster', 'applyDamageToPlayer'] },
+  // The last three are optional richer pipelines (not in CONTRACTS); code checks for them before use.
+  { path: './combat.js', names: ['rollPlayerHitsMonster', 'rollMonsterHitsPlayer', 'applyDamageToMonster', 'applyDamageToPlayer', 'monsterMeleeHit', 'playerMissileHit', 'monsterMissileHit'] },
   { path: './player.js', names: ['giveXp'] },
   { path: '../items/itemgen.js', names: ['generateItem', 'generateGold'] },
 ];
@@ -56,13 +57,14 @@ export const deps = { ...stubs };
 
 /**
  * Override dependencies (tests / embedding). Overrides are never replaced by
- * the background import.
- * @param {Partial<typeof stubs>} table
+ * the background import. A `null` value pins an optional name off (the code
+ * then uses the CONTRACTS primitives instead of e.g. combat.js monsterMeleeHit).
+ * @param {Object<string, Function|null>} table
  */
 export function setMonsterDeps(table) {
   for (const k of Object.keys(table)) {
-    if (typeof table[k] !== 'function') continue;
-    deps[k] = table[k];
+    if (typeof table[k] !== 'function' && table[k] !== null) continue;
+    deps[k] = table[k] === null ? stubs[k] || null : table[k];
     explicit.add(k);
   }
 }

@@ -6,7 +6,7 @@
  * caster's level-10 firebolt rolls ~45–83. Mana: manaBase − manaPerLevel*(slvl−1),
  * never below manaMin (reference spelldat columns manaCost / manaMultiplier / minMana).
  * Skills whose damage comes from the weapon (volley, cleave) set `useWeaponDmg`.
- * missile.speed is in tiles per tick (reference 16 units = 1 tile/tick).
+ * missile.speed is in tiles per tick; omitted fields fall back to data/balance/missiles.js arch defaults.
  */
 const ALL = ['warden', 'stalker', 'hexwright'];
 
@@ -16,7 +16,7 @@ export default [
     archetype: 'bolt', element: 'fire',
     manaBase: 6, manaPerLevel: 0.5, manaMin: 3, minMag: 15, classes: ['hexwright'], learnLevel: 1,
     dmg: { base: [0, 3], perCasterLevel: [2, 3], perSkillLevel: [0.5, 2] },
-    missile: { speed: 0.8, range: 40 },
+    missile: { speed: 0.35, range: 40 },
     look: { color: '#ff8a3a', glyph: 'bolt' }, sfx: 'cast',
   },
   {
@@ -24,7 +24,7 @@ export default [
     archetype: 'bolt', element: 'cold',
     manaBase: 7, manaPerLevel: 0.5, manaMin: 4, minMag: 18, classes: ['hexwright'], learnLevel: 2,
     dmg: { base: [1, 4], perCasterLevel: [1.5, 3], perSkillLevel: [1, 2] },
-    missile: { speed: 0.6, range: 40, slow: 0.5 },
+    missile: { speed: 0.28, range: 40, slow: 0.5 },
     look: { color: '#9ad8ff', glyph: 'shard' }, sfx: 'cast',
   },
   {
@@ -32,7 +32,7 @@ export default [
     archetype: 'pierce', element: 'shock',
     manaBase: 10, manaPerLevel: 1, manaMin: 6, minMag: 20, classes: ['hexwright'], learnLevel: 4,
     dmg: { base: [2, 2], perCasterLevel: [0, 1], perSkillLevel: [0.25, 0.75] },   // rand(2, 2+L) per segment
-    missile: { speed: 1.2, range: 24, pierce: true },
+    missile: { speed: 0.4, range: 24, pierce: true },
     look: { color: '#d0e8ff', glyph: 'beam' }, sfx: 'cast',
   },
   {
@@ -40,7 +40,7 @@ export default [
     archetype: 'nova', element: 'shock',
     manaBase: 60, manaPerLevel: 3, manaMin: 35, minMag: 60, classes: ['hexwright'], learnLevel: 14,
     dmg: { base: [2, 8], perCasterLevel: [0.5, 0.6], perSkillLevel: [0.5, 1] },   // (5d6 + L + 5)/2 scaled
-    missile: { speed: 1, range: 16, count: 16 },
+    missile: { range: 16, count: 16 },
     look: { color: '#e8f0ff', glyph: 'ring' }, sfx: 'explode',
   },
   {
@@ -48,7 +48,7 @@ export default [
     archetype: 'chain', element: 'shock',
     manaBase: 30, manaPerLevel: 1, manaMin: 18, minMag: 45, classes: ['hexwright'], learnLevel: 8,
     dmg: { base: [2, 2], perCasterLevel: [0, 1], perSkillLevel: [0.25, 0.75] },
-    missile: { speed: 1.2, range: 24, radius: 3 },
+    missile: { speed: 0.5, range: 120, radius: 3, jumps: 4 },
     look: { color: '#d0e8ff', glyph: 'beam' }, sfx: 'cast',
   },
   {
@@ -56,7 +56,7 @@ export default [
     archetype: 'wall', element: 'fire',
     manaBase: 28, manaPerLevel: 2, manaMin: 16, minMag: 27, classes: ['hexwright'], learnLevel: 3,
     dmg: { base: [2, 20], perCasterLevel: [1, 1], perSkillLevel: [0, 0.5] },      // 2d10 + 2 + L per touch
-    missile: { speed: 0, range: 160, length: 7 },
+    missile: { segments: 3, lifetime: 160 },
     look: { color: '#ff6a2a', glyph: 'flame' }, sfx: 'cast',
   },
   {
@@ -64,7 +64,7 @@ export default [
     archetype: 'groundAoe', element: 'fire',
     manaBase: 16, manaPerLevel: 1, manaMin: 10, minMag: 35, classes: ['hexwright'], learnLevel: 9,
     dmg: { base: [4, 22], perCasterLevel: [1, 1.5], perSkillLevel: [1, 2] },
-    missile: { speed: 0.6, range: 40, radius: 2, duration: 60 },
+    missile: { speed: 0.3, range: 40, radius: 1.5, lifetime: 100 },
     look: { color: '#ff5a1a', glyph: 'orb' }, sfx: 'explode',
   },
   {
@@ -96,7 +96,7 @@ export default [
     archetype: 'summon', element: 'fire',
     manaBase: 50, manaPerLevel: 2, manaMin: 30, minMag: 50, classes: ['hexwright'], learnLevel: 11,
     dmg: { base: [1, 10], perCasterLevel: [0.5, 0.5], perSkillLevel: [0.5, 1] },  // guardian bolt: d10 + L/2 + 1 scaled
-    missile: { speed: 0, range: 480, radius: 6 },
+    missile: { typeId: 'rust_sentinel', lifetime: 480 },   // ally monster type used as the ward body
     look: { color: '#ffb060', glyph: 'totem' }, sfx: 'cast',
   },
   {
@@ -104,7 +104,7 @@ export default [
     archetype: 'homing', element: 'arcane',
     manaBase: 35, manaPerLevel: 2, manaMin: 20, minMag: 55, classes: ['hexwright'], learnLevel: 12,
     dmg: { base: [2, 10], perCasterLevel: [1, 1], perSkillLevel: [0.5, 1.5] },    // half a fireball
-    missile: { speed: 0.5, range: 80, radius: 1 },
+    missile: { speed: 0.25, range: 300, radius: 1 },
     look: { color: '#d070ff', glyph: 'orb' }, sfx: 'cast',
   },
   {
@@ -112,7 +112,7 @@ export default [
     archetype: 'multishot', element: 'phys',
     manaBase: 8, manaPerLevel: 0.5, manaMin: 4, minMag: 0, classes: ['stalker'], learnLevel: 1,
     dmg: { base: [0, 0], perCasterLevel: [0, 0], perSkillLevel: [0, 0.5] }, useWeaponDmg: true,
-    missile: { speed: 1, range: 30, count: 3, spread: 15 },
+    missile: { count: 3, spread: 15 },
     look: { color: '#d8c8a0', glyph: 'arrow' }, sfx: 'bowShot',
   },
   {

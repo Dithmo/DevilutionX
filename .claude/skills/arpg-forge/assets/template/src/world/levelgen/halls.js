@@ -9,8 +9,8 @@
  * Interior walls are carved along floor runs that start at a concave corner
  * and end on a wall, each with one doorway (reference AddWall).
  */
-import { createTiles, T, idx, inBounds, setFlag } from '../tiles.js';
-import { carveRect, raiseWalls, setWall, sprinkleFloor, isFloor, rectAll } from './grid.js';
+import { createTiles, T, idx, setFlag } from '../tiles.js';
+import { carveRect, raiseWalls, setWall, sprinkleFloor, isFloor } from './grid.js';
 import { LEVELS } from '../../../data/balance/levels.js';
 
 const FLOOR = 1;
@@ -34,10 +34,10 @@ function mapRoom(mask, r) {
 /** Rect must be inside [1, bw) x [1, bh) and the mask clear over the rect grown by 1 except on the parent side. */
 function checkRoom(mask, r, bw, bh, skipSide) {
   if (r.x < 1 || r.y < 1 || r.x + r.w > bw || r.y + r.h > bh) return false;
-  const x0 = r.x - (skipSide === 'E' ? 0 : 1);
-  const x1 = r.x + r.w + (skipSide === 'W' ? 0 : 1);
-  const y0 = r.y - (skipSide === 'S' ? 0 : 1);
-  const y1 = r.y + r.h + (skipSide === 'N' ? 0 : 1);
+  const x0 = r.x - (skipSide === 'W' ? 0 : 1);
+  const x1 = r.x + r.w + (skipSide === 'E' ? 0 : 1);
+  const y0 = r.y - (skipSide === 'N' ? 0 : 1);
+  const y1 = r.y + r.h + (skipSide === 'S' ? 0 : 1);
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) if (mask.get(x, y)) return false;
   return true;
 }
@@ -80,15 +80,23 @@ function reachAxes(mask, qw, qh, rng) {
   for (let y = qh - 1; y >= 0 && !(mask.get(cx, y) && mask.get(cx + 1, y)); y--) { mask.set(cx, y); mask.set(cx + 1, y); }
 }
 
+/** Reference: `do { FirstRoom() } while (FindArea() < min)` on the quadrant only, then mirror. */
 function buildMirrored(mask, w, h, rng, cfg, rooms) {
   const qw = w >> 1;
   const qh = h >> 1;
-  const sw = rng.range(cfg.seedRoom[0], cfg.seedRoom[1]);
-  const sh = rng.range(cfg.seedRoom[0], cfg.seedRoom[1]);
-  const seed = { x: rng.range((qw - sw) >> 1, qw - 1 - sw), y: rng.range((qh - sh) >> 1, qh - 1 - sh), w: sw, h: sh };
-  mapRoom(mask, seed);
-  rooms.push({ ...seed, kind: 'room' });
-  growTree(mask, seed, rng.chance(HALF_PCT), rng, cfg, qw, qh, rooms, 0, cfg.roomSizes, cfg.flipPctMirror);
+  for (let attempt = 0; attempt < cfg.quadrantTries; attempt++) {
+    mask.m.fill(0);
+    rooms.length = 0;
+    const sw = rng.range(cfg.seedRoom[0], cfg.seedRoom[1]);
+    const sh = rng.range(cfg.seedRoom[0], cfg.seedRoom[1]);
+    const seed = { x: rng.range((qw - sw) >> 1, qw - 1 - sw), y: rng.range((qh - sh) >> 1, qh - 1 - sh), w: sw, h: sh };
+    mapRoom(mask, seed);
+    rooms.push({ ...seed, kind: 'room' });
+    growTree(mask, seed, rng.chance(HALF_PCT), rng, cfg, qw, qh, rooms, 0, cfg.roomSizes, cfg.flipPctMirror);
+    let count = 0;
+    for (let i = 0; i < mask.m.length; i++) count += mask.m[i];
+    if (count * 4 >= cfg.minMaskArea * w * h) break;
+  }
   for (let i = 0; i < qw; i++) { mask.m[i] = 0; mask.m[i * w] = 0; }   // close outer borders (row 0, col 0)
   reachAxes(mask, qw, qh, rng);
   for (let y = 0; y < qh; y++) {
@@ -140,9 +148,8 @@ function buildOssuary(mask, w, h, rng, cfg, rooms) {
 }
 
 /** Reference AddWall: wall a floor run flanked by floor that starts at a wall and ends on a wall; leave one doorway. */
-function carveWalls(tiles, rng, minRun, doorway, wallPct, doorPct, doorSpecs) {
+function carveWalls(tiles, rng, minRun, doorway, wallPct, doorPct, doorSpecs, guard) {
   const { w, h } = tiles;
-  const guard = new Uint8Array(w * h);
   const flanked = (x, y, horiz) => isFloor(tiles, x, y) && !guard[idx(tiles, x, y)]
     && (horiz ? isFloor(tiles, x, y - 1) && isFloor(tiles, x, y + 1) : isFloor(tiles, x - 1, y) && isFloor(tiles, x + 1, y));
   for (const horiz of [true, false]) {
@@ -150,7 +157,9 @@ function carveWalls(tiles, rng, minRun, doorway, wallPct, doorPct, doorSpecs) {
       for (let x = 1; x < w - 1; x++) {
         const px = horiz ? x - 1 : x;
         const py = horiz ? y : y - 1;
-        if (isFloor(tiles, px, py) || !flanked(x, y, horiz)) continue;
+        // Start only at a concave corner: the wall tile before the run has floor on a perpendicular side.
+        const corner = horiz ? isFloor(tiles, px, py - 1) || isFloor(tiles, px, py + 1) : isFloor(tiles, px - 1, py) || isFloor(tiles, px + 1, py);
+        if (isFloor(tiles, px, py) || !corner || !flanked(x, y, horiz)) continue;
         let len = 0;
         while (flanked(x + (horiz ? len : 0), y + (horiz ? 0 : len), horiz)) len++;
         const ex = x + (horiz ? len : 0);
@@ -191,12 +200,13 @@ export function generateHalls(rng, w, h, opts = {}) {
   else buildOssuary(mask, w, h, rng, cfg, rooms);
   const tiles = createTiles(w, h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (mask.get(x, y)) carveRect(tiles, rng, x, y, 1, 1, FLOOR);
-  if (!rectAll(1, 1, w - 2, h - 2, (x, y) => inBounds(tiles, x, y))) return { tiles, rooms, doorSpecs: [], corridorFloor: 0 };
   raiseWalls(tiles, WALL_STYLE);
   const doorSpecs = [];
+  const guard = new Uint8Array(w * h);   // tiles the wall carver must leave alone (halls, doorways)
+  for (const r of rooms) if (r.kind === 'hall') for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) guard[idx(tiles, x, y)] = 1;
   const minRun = cfg.mirror ? cfg.minRunMirror : cfg.minRunOssuary;
   const doorway = cfg.mirror ? cfg.doorwayMirror : cfg.doorwayOssuary;
-  carveWalls(tiles, rng, minRun, doorway, cfg.wallPct, cfg.doorPct, doorSpecs);
+  carveWalls(tiles, rng, minRun, doorway, cfg.wallPct, cfg.doorPct, doorSpecs, guard);
   sprinkleFloor(tiles, rng, FLOOR, FLOOR_ALT, cfg.floorAltPct);
   return { tiles, rooms, doorSpecs, corridorFloor: 0 };
 }

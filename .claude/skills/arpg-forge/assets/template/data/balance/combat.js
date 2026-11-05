@@ -91,10 +91,6 @@ export const HIT_FLASH_TICKS = 3;
 
 /** Bow auto-attack range in tiles (reference arrows live ~ 16+ tiles; we cap the auto-shoot intent). */
 export const BOW_RANGE_TILES = 12;
-/** Arrow missile speed (tiles per tick) used by the plain auto-attack arrow. */
-export const ARROW_SPEED = 0.8;
-/** Arrow missile range in ticks. */
-export const ARROW_RANGE_TICKS = 24;
 
 /** Floating-number / message colours per element and outcome. */
 export const ELEMENT_COLORS = Object.freeze({
@@ -113,3 +109,26 @@ export const ELEMENT_COLORS = Object.freeze({
 });
 /** Floats drift up from the entity's head: offset in world tiles. */
 export const FLOAT_HEAD_OFFSET = 0.6;
+/** Look of the plain auto-attack arrow missile. */
+export const ARROW_LOOK = Object.freeze({ glyph: 'arrow', color: '#d8c8a0', color2: '#6f5a3a' });
+
+/** Merged object for `game.balance.combat` (data/balance/index.js imports the default). */
+const combat = {
+  toHitMin: TO_HIT_MIN, toHitMax: TO_HIT_MAX, rollD: ROLL_D,
+  monsterHitFlatBonus: MONSTER_HIT_FLAT_BONUS, levelDiffMult: LEVEL_DIFF_MULT,
+  monsterMissileDistMult: MONSTER_MISSILE_DIST_MULT, monsterSpellBaseHit: MONSTER_SPELL_BASE_HIT,
+  monsterMinHitMelee: MONSTER_MIN_HIT_MELEE, monsterMinHitMissile: MONSTER_MIN_HIT_MISSILE,
+  playerAcDexDiv: PLAYER_AC_DEX_DIV, meleeToHitDexDiv: MELEE_TOHIT_DEX_DIV, arrowDistSqDiv: ARROW_DIST_SQ_DIV,
+  spellToHitLevelMult: SPELL_TOHIT_LEVEL_MULT,
+  blockLevelMult: BLOCK_LEVEL_MULT, blockMin: BLOCK_MIN, blockMax: BLOCK_MAX, blockingAnims: BLOCKING_ANIMS,
+  critMult: CRIT_MULT, resistMult: RESIST_MULT, immuneMult: IMMUNE_MULT,
+  meleeDmgModDiv: MELEE_DMG_MOD_DIV, rangedDmgModDiv: RANGED_DMG_MOD_DIV, unarmedDmg: UNARMED_DMG,
+  weaponVsFlag: WEAPON_VS_FLAG, monsterStaggerLevelBonus: MONSTER_STAGGER_LEVEL_BONUS,
+  playerStaggerHeavyDiv: PLAYER_STAGGER_HEAVY_DIV, minPlayerDamage: MIN_PLAYER_DAMAGE, minMonsterDamage: MIN_MONSTER_DAMAGE,
+  manaShield: { baseReduction: MANA_SHIELD_BASE_REDUCTION, perLevel: MANA_SHIELD_PER_LEVEL, maxLevel: MANA_SHIELD_MAX_LEVEL },
+  thornsMin: THORNS_MIN, stealPctDiv: STEAL_PCT_DIV, knockbackTiles: KNOCKBACK_TILES,
+  monsterHitTicksDefault: MONSTER_HIT_TICKS_DEFAULT, hitFlashTicks: HIT_FLASH_TICKS,
+  bowRangeTiles: BOW_RANGE_TILES,
+  elementColors: ELEMENT_COLORS, floatHeadOffset: FLOAT_HEAD_OFFSET, arrowLook: ARROW_LOOK,
+};
+export default combat;

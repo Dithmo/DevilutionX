@@ -34,13 +34,13 @@ export const LEVELS = {
     splitPct: 55,             // chance to split a leaf that fits but is not forced
     roomMin: 4,
     skipRoomPct: 8,           // leaves left empty for variety
-    chambers: [0, 3],         // pillared 10x10 chambers per level               (ref A: 0..3)
-    chamberSize: 10,
-    pillarOffsets: [[3, 3], [6, 3], [3, 6], [6, 6]],  // (ref A: (4,4),(7,4),(4,7),(7,7) in an 11x11)
-    randomWalkPct: 50,        // else an L-shaped corridor
+    chambers: [0, 3],         // pillared 9x9 chambers per level               (ref A: 0..3)
+    chamberSize: 9,
+    pillarOffsets: [[2, 2], [6, 2], [2, 6], [6, 6]],  // (ref A: (4,4),(7,4),(4,7),(7,7) in an 11x11)
+    randomWalkPct: 40,        // else an L-shaped corridor
     reaimH: [2, 30],          // re-aim horizontally with min(2*dx, 30)%        (ref B)
     reaimV: [5, 80],          // re-aim vertically with min(5*dy, 80)%          (ref B)
-    driftPct: 12,             // random perpendicular wander per step
+    driftPct: 6,              // random perpendicular wander per step
     maxWalkMult: 6,           // walk step cap = mult * (w + h)
     extraCorridors: [1, 3],   // loops added after the tree is connected
     extraMaxDist: 22,
@@ -57,6 +57,8 @@ export const LEVELS = {
     flipPctOssuary: 25,       //                                                  (ref A: 1/4)
     maxRooms: 80,
     maxDepth: 14,
+    quadrantTries: 200,       // regrow the quadrant until the mask covers minMaskArea     (ref: do/while FindArea < 692)
+    minMaskArea: 0.4,         // fraction of the whole grid the mirrored mask must cover
     minRunMirror: 4,          // floor run length before a wall is carved         (ref D: > 3)
     minRunOssuary: 2,
     doorwayMirror: 3,         // 3-wide open doorways                             (ref D)
@@ -84,7 +86,7 @@ export const LEVELS = {
     maxDepth: 60,
     smoothPasses: 2,          // cellular 4-5 rule passes
     smoothBirth: 5,           // >= this many floor neighbours -> floor
-    smoothDeath: 2,           // <= this many floor neighbours -> rock
+    smoothDeath: 3,           // <= this many floor neighbours -> rock
     pools: [0, 2],            // water pools per level                              (ref: >= 1 lava pool, 25% per region)
     poolMin: 5,
     poolMax: 40,
@@ -92,8 +94,8 @@ export const LEVELS = {
     fenceSpan: [3, 10],
     fenceTries: 40,
     cells: [1, 2],            // walled theme cells carved into open floor          (ref: theme rooms 5..10)
-    cellInner: [5, 7],
-    cellTries: 80,
+    cellInner: [4, 6],
+    cellTries: 200,
     openRoomSize: 6,
     openRooms: 6,
     floorAltPct: 25,          // (ref: 25% floor variants)

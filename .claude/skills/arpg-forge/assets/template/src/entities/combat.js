@@ -25,7 +25,6 @@ import * as C from '../../data/balance/combat.js';
 export { resistMultiplier, elementColor } from './combat_rolls.js';
 
 const ADJACENT = 1;
-const PCT = 100;
 
 function classOf(game, p) {
   return p._cls || game.theme.classes.find((c) => c.id === p.classId);
@@ -54,12 +53,8 @@ export function rollPlayerHitsMonster(game, p, m, opts = {}) {
   const cls = classOf(game, p);
   const chance = R.playerHitChance(p, cls, m, opts);
   if (game.rng.rand(C.ROLL_D) >= chance) return { hit: false, dmg: 0, crit: false, chance };
-  const range = opts.dmg || R.weaponDamage(p);
+  const range = opts.dmg || R.weaponDamage(p); // derived damage already carries items + stat mod
   let dmg = game.rng.range(range.min, range.max);
-  dmg += Math.floor((dmg * R.buffTotal(p, 'dmgPct')) / PCT);
-  let mod = R.statDamageMod(p, cls);
-  if (opts.ranged && cls.weaponPref !== 'ranged') mod = Math.floor(mod / 2); // reference: non-archer arrows get half statMod
-  if (!opts.spell) dmg += mod;
   let crit = false;
   if (!opts.spell && cls.critOnLevel && game.rng.rand(C.ROLL_D) < p.level) {
     dmg *= C.CRIT_MULT;
@@ -83,7 +78,7 @@ export function rollMonsterHitsPlayer(game, m, p, opts = {}) {
   const chance = R.monsterHitChance(m, p, depth, opts);
   if (game.rng.rand(C.ROLL_D) >= chance) return { hit: false, blocked: false, dmg: 0, chance };
   if (R.canBlock(p)) {
-    const blk = R.blockChance(p, classOf(game, p), m.level || 0, !!(opts.missile || opts.spell));
+    const blk = R.blockChance(p, classOf(game, p), m.level || 0);
     if (game.rng.rand(C.ROLL_D) < blk) return { hit: true, blocked: true, dmg: 0, chance };
   }
   const range = opts.dmg || { min: m.dmgMin, max: m.dmgMax };
@@ -91,11 +86,14 @@ export function rollMonsterHitsPlayer(game, m, p, opts = {}) {
   return { hit: true, blocked: false, dmg, chance };
 }
 
-/** Put a monster into hit recovery (anim + ticks). Monster AI honours m.hitRecoverTicks. */
+/**
+ * Put a monster into hit recovery by setting m.hitRecoverTicks; the monster
+ * update owns the hit anim and snaps the body (it starts the anim when it
+ * sees hitRecoverTicks > 0), so no anim is set here.
+ */
 export function staggerMonster(game, m) {
-  const ticks = (m.speed && m.speed.hitTicks) || C.MONSTER_HIT_TICKS_DEFAULT;
-  m.hitRecoverTicks = ticks;
-  setAnim(m, 'hit', Math.max(1, Math.round(ticks / ANIM_FRAMES.hit)), ANIM_FRAMES.hit);
+  if (m.noHitRecover || m.charging || m.hitRecoverTicks > 0) return;
+  m.hitRecoverTicks = (m.speed && m.speed.hitTicks) || C.MONSTER_HIT_TICKS_DEFAULT;
 }
 
 /** Put the player into hit recovery; cancels walking and snaps to a tile. */
@@ -127,14 +125,15 @@ export function applyDamageToMonster(game, m, dmg, element = 'phys', source = nu
     return 0;
   }
   const dealt = Math.max(C.MIN_MONSTER_DAMAGE, Math.floor(dmg * mult));
+  const killer = source && source.kind === 'skill' && source.owner ? source.owner : source; // skills pass {kind:'skill', owner}
   m.hp -= dealt;
   m.flash = C.HIT_FLASH_TICKS;
   m.awake = true;
-  if (source) m.lastHitBy = source.id;
+  if (killer) m.lastHitBy = killer.id;
   emitFloat(game, m, dealt, R.elementColor(element));
   if (m.hp <= 0) {
     m.hp = 0;
-    killMonster(game, m, source);
+    killMonster(game, m, killer);
     return dealt;
   }
   emitSfx(game, 'monsterHit', m);
@@ -278,7 +277,7 @@ export function monsterMeleeHit(game, m, p) {
   const dealt = applyDamageToPlayer(game, p, r.dmg, 'phys', m);
   const thorns = (p.derived && p.derived.thorns) || 0;
   if (thorns > 0 && !m.dead) applyDamageToMonster(game, m, game.rng.range(C.THORNS_MIN, Math.max(C.THORNS_MIN, thorns)), 'phys', p);
-  if (R.hasFlag(m, 'knockback') && !p.dead) {
+  if ((m.knockback || R.hasFlag(m, 'knockback')) && !p.dead) {
     tryKnockback(game, p, m.tx, m.ty);
     if (p.state.hitRecoverTicks <= 0) staggerPlayer(game, p);
   }

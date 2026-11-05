@@ -12,6 +12,8 @@ export const monsters = {
     // ref T2: hp 4*base+200, dmg 4*d+6, ac +80, toHit +120, lvl +30, xp 4*(xp+1000)
     { hpMult: 4, hpAdd: 200, dmgMult: 4, dmgAdd: 6, dmgPreAdd: 0, acAdd: 80, toHitAdd: 120, levelAdd: 30, xpMult: 4, xpPreAdd: 1000 },
   ],
+  /** save.js stores difficulty as a name; index into `difficulty` above. */
+  difficultyNames: ['normal', 'nightmare', 'hell'],
   /** ref: single player halves table HP. Our theme tables are already SP-sized, so 1. */
   hpMult: 1,
   /** Unique monsters: level = 2*uniqueLevel (ref) → we use uniqueLevel + uniqueLevelAdd; xp ×2. ref §2.2 */
@@ -55,7 +57,7 @@ export const monsters = {
   walkGateStandTicks: 20,
 
   // --- animation (8-frame model matching render/draw_actor.js) -----------------
-  frames: { stand: 8, walk: 8, attack: 8, cast: 8, hit: 4, death: 8, special: 8 },
+  frames: { stand: 1, walk: 8, attack: 8, cast: 8, hit: 4, death: 10, special: 8 },
   /** Ticks per frame for the idle loop. ref: stand rate 1–5. */
   standFrameTicks: 3,
 
@@ -101,7 +103,7 @@ export const monsters = {
     /** Boss: ranged volley at distance, rusher when close, summons once at 50% HP. ref §7.15 + §7.8. */
     boss: { volley: [5, 10], volleyDist: 3, volleyCount: 3, volleySpread: 1, summonHpPct: 50, summonCount: 3, attack: [2, 30], walkGate: [[2, 33], [2, 83]] },
     /** Player-allied ward. ref §7.21 golem: always attacks when adjacent, A* to nearest hostile, follows owner. */
-    ally: { followDist: 2, searchRadius: 8, attack: [0, 100] },
+    ally: { followDist: 2, searchRadius: 8, attack: [0, 100], shootRange: 6 },
   },
 };
 

@@ -10,7 +10,7 @@ import { deps } from './monster_deps.js';
 import { occupantAt, setOccupant, tileFree, findFreeTileNear, ringCrawl, nearestEnemy } from './monster_util.js';
 import { startAnim, monsterStand } from './monster_update.js';
 
-export { updateMonsters, monsterStep, monsterFacePlayer, monsterAttackPlayer, monsterShoot, staggerMonster, monsterApproach, monsterRetreat } from './monster_update.js';
+export { updateMonsters, monsterStep, monsterFacePlayer, monsterAttackPlayer, monsterShoot, onMonsterDamaged, monsterApproach, monsterRetreat } from './monster_update.js';
 export { setMonsterDeps, loadMonsterDeps } from './monster_deps.js';
 
 const FLAG_FIELDS = { opensDoors: 'opensDoors', noHitRecover: 'noHitRecover', noLoot: 'noLoot', knockback: 'knockback' };
@@ -45,6 +45,14 @@ function nextId(game) {
   return game.nextId++;
 }
 
+/** @returns {number} 0..2 from `game.difficulty` (number or name, see balance `difficultyNames`) */
+export function difficultyIndex(game) {
+  const b = bal(game);
+  const d = game.difficulty;
+  const i = typeof d === 'string' ? b.difficultyNames.indexOf(d) : d | 0;
+  return Math.max(0, Math.min(b.difficulty.length - 1, i));
+}
+
 /**
  * Create a monster of `typeId` at (tx,ty) (nearest free tile if occupied).
  * Rolls HP, applies difficulty scaling from balance by `game.difficulty`.
@@ -64,7 +72,7 @@ export function spawnMonster(game, typeId, tx, ty, opts = {}) {
   const spot = findFreeTileNear(level, tx, ty, b.crawlRadius);
   if (!spot) return null;
   const u = opts.unique || null;
-  const diff = b.difficulty[Math.max(0, Math.min(b.difficulty.length - 1, game.difficulty | 0))];
+  const diff = b.difficulty[difficultyIndex(game)];
   const rng = game.rng;
   const st = opts.stats || {};
   let hp = st.hp !== undefined ? st.hp : u && u.hp ? u.hp : rng.range(def.hp[0], def.hp[1]);
@@ -302,6 +310,13 @@ function normaliseStamps(stamps) {
   return Array.isArray(stamps) ? stamps : Object.values(stamps);
 }
 
+/** A stamp's tile: its own x,y, else the centre of the room tagged with its quest / stamp kind. */
+function stampTile(level, s) {
+  if (typeof s.x === 'number' && typeof s.y === 'number') return { x: s.x, y: s.y };
+  const room = (level.rooms || []).find((r) => (s.questId && r.questId === s.questId) || (s.stamp && r.kind === s.stamp));
+  return room ? { x: room.x + (room.w >> 1), y: room.y + (room.h >> 1) } : null;
+}
+
 function uniqueWanted(game, tier, u) {
   if (tier && u.id === tier.bossId) return true;
   if (!u.questId || !game.quests || !game.quests[u.questId]) return true;
@@ -321,7 +336,7 @@ function farRoomCentre(game, level) {
  * @param {object} game
  * @param {object} level
  * @param {object} tier theme Tier
- * @returns {number} monsters placed
+ * @returns {number} monsters placed (uniques' followers included)
  */
 export function placeMonstersForLevel(game, level, tier) {
   const b = bal(game);
@@ -352,13 +367,16 @@ export function placeMonstersForLevel(game, level, tier) {
     const uid = s.uniqueId || s.uniqueMonsterId;
     if (!uid || done.has(uid)) continue;
     const u = uniqueList(game).find((d) => d.id === uid);
-    if (!u || !uniqueWanted(game, tier, u)) continue;
-    if (spawnUniqueMonster(game, uid, s.x, s.y)) { done.add(uid); placed++; }
+    const at = stampTile(level, s);
+    if (!u || !at || !uniqueWanted(game, tier, u)) continue;
+    const before = level.monsters.length;
+    if (spawnUniqueMonster(game, uid, at.x, at.y)) { done.add(uid); placed += level.monsters.length - before; }
   }
   for (const u of uniqueList(game)) {
     if (u.depth !== depth || done.has(u.id) || !uniqueWanted(game, tier, u)) continue;
     const spot = farRoomCentre(game, level);
-    if (spot && spawnUniqueMonster(game, u.id, spot.x, spot.y)) { done.add(u.id); placed++; }
+    const before = level.monsters.length;
+    if (spot && spawnUniqueMonster(game, u.id, spot.x, spot.y)) { done.add(u.id); placed += level.monsters.length - before; }
   }
   level.uniquesPlaced = [...done];
   game.level = prev || level;

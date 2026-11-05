@@ -5,7 +5,8 @@
  * once at boot (dynamic import, each one optional) or passes the functions
  * to `setItemDeps`. Unit tests inject stubs the same way. Names and
  * signatures are the ones listed in docs/CONTRACTS.md plus
- * `recalcPlayerBase(game)` and `applyBuff(game, p, buff)` from player.js.
+ * `recalcPlayerBase(p, cls)`, `applyBuff(game, p, {id,stat,value,duration})` and
+ * `useConsumable(game, item)` from player.js.
  */
 const deps = {
   spawnMissile: null,          // (game, spec) -> Missile|null
@@ -14,7 +15,8 @@ const deps = {
   monstersInRadius: null,      // (level, x, y, r) -> Monster[]
   applyBuff: null,             // (game, p, {id, stat, value, ticks})
   teleportPlayer: null,        // (game, tx, ty)
-  recalcPlayerBase: null,      // (game) -> sets p.derived.lifeBase / manaBase (optional)
+  recalcPlayerBase: null,      // (p, cls) -> rebuilds hpMax/mpMax/moveSpeed/lightRadius from p.derived
+  useConsumable: null,         // (game, item, opts) -> boolean (player.js owns consumable effects)
   giveXp: null,
 };
 
@@ -22,7 +24,7 @@ const SOURCES = [
   ['../entities/missile.js', ['spawnMissile']],
   ['../entities/combat.js', ['applyDamageToMonster', 'rollPlayerHitsMonster']],
   ['../entities/monster.js', ['monstersInRadius']],
-  ['../entities/player.js', ['applyBuff', 'teleportPlayer', 'recalcPlayerBase', 'giveXp']],
+  ['../entities/player.js', ['applyBuff', 'teleportPlayer', 'recalcPlayerBase', 'giveXp', 'useConsumable']],
 ];
 
 /**

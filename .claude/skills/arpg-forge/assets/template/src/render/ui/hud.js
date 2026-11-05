@@ -102,11 +102,11 @@ export function drawHud(ctx, game) {
   registerHit(game, lifeRect, { kind: 'globe', stat: 'life' });
   registerHit(game, manaRect, { kind: 'globe', stat: 'mana' });
   const hpColor = hp <= 0 ? pal.danger : hp >= hpMax ? pal.gold : pal.text;
-  drawText(ctx, `${Math.ceil(hp)}/${hpMax}`, L.lifeGlobe.cx, L.lifeGlobe.cy - GLOBE_LABEL_DY + 4, { align: 'center', size: GLOBE_VALUE_SIZE, color: hpColor, game, weight: 'bold' });
-  drawText(ctx, str(game, 'life', 'Life'), L.lifeGlobe.cx, L.lifeGlobe.cy + L.lifeGlobe.r + 6, { align: 'center', size: 10, color: pal.textDim, game });
+  drawText(ctx, `${Math.ceil(hp)}/${hpMax}`, L.lifeGlobe.cx, L.lifeGlobe.cy - GLOBE_LABEL_DY, { align: 'center', size: GLOBE_VALUE_SIZE, color: hpColor, game, weight: 'bold' });
+  drawText(ctx, str(game, 'life', 'Life'), L.lifeGlobe.cx, L.lifeGlobe.cy + GLOBE_LABEL_DY - 4, { align: 'center', size: 10, color: pal.text, game, alpha: 0.8 });
   const mpColor = mp <= 0 ? pal.danger : mp >= mpMax ? pal.gold : pal.text;
-  drawText(ctx, `${Math.ceil(mp)}/${mpMax}`, L.manaGlobe.cx, L.manaGlobe.cy - GLOBE_LABEL_DY + 4, { align: 'center', size: GLOBE_VALUE_SIZE, color: mpColor, game, weight: 'bold' });
-  drawText(ctx, str(game, shield ? 'manaShield' : 'mana', shield ? 'Shield' : 'Mana'), L.manaGlobe.cx, L.manaGlobe.cy + L.manaGlobe.r + 6, { align: 'center', size: 10, color: shield ? MANA_SHIELD_TINT : pal.textDim, game });
+  drawText(ctx, `${Math.ceil(mp)}/${mpMax}`, L.manaGlobe.cx, L.manaGlobe.cy - GLOBE_LABEL_DY, { align: 'center', size: GLOBE_VALUE_SIZE, color: mpColor, game, weight: 'bold' });
+  drawText(ctx, str(game, shield ? 'manaShield' : 'mana', shield ? 'Shield' : 'Mana'), L.manaGlobe.cx, L.manaGlobe.cy + GLOBE_LABEL_DY - 4, { align: 'center', size: 10, color: shield ? MANA_SHIELD_TINT : pal.text, game, alpha: 0.8 });
 
   // --- buttons ---
   LEFT_BUTTONS.forEach((b, i) => drawPanelButton(ctx, game, columnButtonRect(L.leftButtons, i), b, mx, my));
