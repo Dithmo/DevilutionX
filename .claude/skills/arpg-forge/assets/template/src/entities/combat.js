@@ -106,12 +106,14 @@ export function staggerMonster(game, m) {
 
 /** Put the player into hit recovery; cancels walking and snaps to a tile. */
 export function staggerPlayer(game, p) {
+  if (p.state.staggerGrace > 0) return;
   const cls = classOf(game, p);
   const skip = Math.max(0, ((p.derived && p.derived.hitRecover) || 0) | 0);
   const perFrame = cls.frames.hitRecover;
   cancelWalk(game, p);
   setAnim(p, 'hit', perFrame, ANIM_FRAMES.hit, -1, skip);
   p.state.hitRecoverTicks = Math.max(1, (ANIM_FRAMES.hit - skip) * perFrame);
+  p.state.staggerGrace = p.state.hitRecoverTicks + (C.PLAYER_STAGGER_GRACE_TICKS || 0);
   p.action = null;
 }
 

@@ -320,7 +320,7 @@ function stampTile(level, s) {
 function uniqueWanted(game, tier, u) {
   if (tier && u.id === tier.bossId) return true;
   if (!u.questId || !game.quests || !game.quests[u.questId]) return true;
-  return game.quests[u.questId].state === 'active';
+  return game.quests[u.questId].state !== 'done'; // placed even before the quest is taken; a kill force-activates it
 }
 
 function farRoomCentre(game, level) {

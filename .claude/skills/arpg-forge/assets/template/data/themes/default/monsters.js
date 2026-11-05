@@ -63,7 +63,7 @@ export const monsters = [
   ...family({ id: 'cave_bat', name: 'Cave Bat', tier: 1, ai: 'flier', level: 3, hp: [3, 6], dmg: [1, 4], ac: 0, toHit: 30, xp: 35,
     speed: SPEED.fast, resist: NONE, flags: ['flies'], pack: { size: [3, 5], leader: false }, intelligence: 1,
     look: { silhouette: 'flier', size: 0.8 } }, [['#3a2f4a', '#8a7aa0'], ['#4a2f2f', '#a07a7a']]),
-  ...family({ id: 'rust_sentinel', name: 'Rust Sentinel', tier: 1, ai: 'tank', level: 5, hp: [25, 40], dmg: [4, 8], ac: 30, toHit: 35, xp: 120,
+  ...family({ id: 'rust_sentinel', name: 'Rust Sentinel', tier: 1, ai: 'tank', level: 5, hp: [14, 22], dmg: [3, 7], ac: 20, toHit: 35, xp: 120,
     speed: SPEED.heavy, resist: { ...NONE, phys: 1, shock: 1, fire: 0 }, flags: ['noHitRecover', 'knockback'], pack: { size: [1, 1], leader: false }, intelligence: 1,
     look: { silhouette: 'tall', size: 1.2 } }, [['#8a5a3a', '#d0a060']]),
 

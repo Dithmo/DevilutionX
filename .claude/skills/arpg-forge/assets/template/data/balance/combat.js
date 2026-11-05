@@ -66,6 +66,8 @@ export const WEAPON_VS_FLAG = Object.freeze({
 export const MONSTER_STAGGER_LEVEL_BONUS = 3;
 /** Player staggers when a single hit deals >= cLvl (reference; heavy-melee bonus cLvl/4 is a class flag). */
 export const PLAYER_STAGGER_HEAVY_DIV = 4;
+/** After hit recovery ends the player cannot be re-staggered for this many ticks (anti stun-lock; 0 = reference). */
+export const PLAYER_STAGGER_GRACE_TICKS = 12;
 /** Minimum damage a landed hit deals to the player (reference: 1 HP). */
 export const MIN_PLAYER_DAMAGE = 1;
 /** Minimum damage a non-immune hit deals to a monster after resist. */
@@ -124,7 +126,7 @@ const combat = {
   critMult: CRIT_MULT, resistMult: RESIST_MULT, immuneMult: IMMUNE_MULT,
   meleeDmgModDiv: MELEE_DMG_MOD_DIV, rangedDmgModDiv: RANGED_DMG_MOD_DIV, unarmedDmg: UNARMED_DMG,
   weaponVsFlag: WEAPON_VS_FLAG, monsterStaggerLevelBonus: MONSTER_STAGGER_LEVEL_BONUS,
-  playerStaggerHeavyDiv: PLAYER_STAGGER_HEAVY_DIV, minPlayerDamage: MIN_PLAYER_DAMAGE, minMonsterDamage: MIN_MONSTER_DAMAGE,
+  playerStaggerHeavyDiv: PLAYER_STAGGER_HEAVY_DIV, playerStaggerGraceTicks: PLAYER_STAGGER_GRACE_TICKS, minPlayerDamage: MIN_PLAYER_DAMAGE, minMonsterDamage: MIN_MONSTER_DAMAGE,
   manaShield: { baseReduction: MANA_SHIELD_BASE_REDUCTION, perLevel: MANA_SHIELD_PER_LEVEL, maxLevel: MANA_SHIELD_MAX_LEVEL },
   thornsMin: THORNS_MIN, stealPctDiv: STEAL_PCT_DIV, knockbackTiles: KNOCKBACK_TILES,
   monsterHitTicksDefault: MONSTER_HIT_TICKS_DEFAULT, hitFlashTicks: HIT_FLASH_TICKS,

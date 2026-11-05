@@ -61,7 +61,8 @@ function wallSide(tiles, x, y) {
 function pushEntities(list, entities, kind, level, cam, alpha, requireLit) {
   if (!entities) return;
   for (const e of entities) {
-    if (e.removed) continue;
+    if (e.removed || e.hidden) continue;
+    if (kind === KIND_OBJECT && e.kind === 'stairs') continue; // drawn from tile flags
     const w = renderPos(e, alpha);
     const tx = Math.floor(w.x);
     const ty = Math.floor(w.y);
@@ -205,7 +206,7 @@ export function getEntityAtScreen(game, sx, sy) {
   for (const [type, entities, yOff] of groups) {
     if (!entities) continue;
     for (const e of entities) {
-      if (e.dead || e.removed) continue;
+      if (e.dead || e.removed || e.hidden) continue;
       const w = renderPos(e, alpha);
       if (tileLight(level, Math.floor(w.x), Math.floor(w.y)) <= DARK_LIGHT && type !== 'object') continue;
       const p = worldToScreen(w.x, w.y, cam);

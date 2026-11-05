@@ -140,6 +140,7 @@ function buildPath(tiles, s, startIdx, endIdx) {
  *   allowDiagonal?:boolean,    default true
  *   allowTargetBlocked?:boolean, default true: if the target is blocked, path to any adjacent tile
  *   allowPartial?:boolean,     default false: on failure return the path to the closest tile reached
+ *   isPassable?:(x:number,y:number)=>boolean, solid tiles this walker may still enter (e.g. closed doors it will open)
  * }} [opts]
  * @returns {Array<{x:number,y:number}>|null} steps excluding the start tile; [] if already there
  */
@@ -150,11 +151,12 @@ export function findPath(tiles, from, to, opts = {}) {
     allowDiagonal = true,
     allowTargetBlocked = true,
     allowPartial = false,
+    isPassable = null,
   } = opts;
   const sx = from.x | 0, sy = from.y | 0, tx = to.x | 0, ty = to.y | 0;
   if (!inBounds(tiles, sx, sy) || !inBounds(tiles, tx, ty)) return null;
 
-  const blocked = (x, y) => isSolid(tiles, x, y) || (isBlocked !== null && isBlocked(x, y));
+  const blocked = (x, y) => (isSolid(tiles, x, y) && !(isPassable !== null && isPassable(x, y))) || (isBlocked !== null && isBlocked(x, y));
   const targetBlocked = blocked(tx, ty);
   if (targetBlocked && !allowTargetBlocked) return null;
   const isGoal = targetBlocked

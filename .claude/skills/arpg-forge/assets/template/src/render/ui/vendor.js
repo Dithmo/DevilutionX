@@ -83,7 +83,7 @@ export function npcServices(game, npc) {
       id,
       label: str(game, known.key, known.fallback),
       cost: typeof cost === 'number' ? cost : null,
-      run: known.fn ? (g, n, item) => call(bridge.Npcs, known.fn, { ok: false, reason: 'missing' }, g, n, item) : null,
+      run: known.fn ? (g, n, item) => (id === 'heal' ? call(bridge.Npcs, known.fn, false, g, n) : call(bridge.Npcs, known.fn, false, g, item, n)) : null,
     };
   });
 }

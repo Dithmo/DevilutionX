@@ -291,6 +291,7 @@ export function updatePlayer(game) {
     return;
   }
   if (p.state.invulnTicks > 0) p.state.invulnTicks -= 1;
+  if (p.state.staggerGrace > 0) p.state.staggerGrace -= 1;
   tickBuffs(game, p);
   regenTick(game, p);
   if (p.state.hitRecoverTicks > 0) {

@@ -322,6 +322,11 @@ export function teleportPlayer(game, tx, ty) {
  * @returns {object}
  */
 export function playerStatsSummary(p) {
+  if (p && p.player && p.theme) { // called as (game)
+    const game = p;
+    p = game.player;
+    if (!p._cls) bindPlayerClass(game, p);
+  }
   const cls = p._cls;
   const dmg = playerDamageRange(p, cls);
   const stats = {};

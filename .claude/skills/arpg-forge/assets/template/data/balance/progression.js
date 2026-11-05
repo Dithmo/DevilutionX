@@ -90,7 +90,7 @@ export const MAX_MOVE_SPEED_MULT = 2;
 export const REPATH_WAIT_TICKS = 4;
 export const MAX_REPATH_TRIES = 6;
 /** A* expansion cap for player paths (reference walkpath is 25 steps; we allow longer click-to-walk). */
-export const PLAYER_PATH_MAX_NODES = 4000;
+export const PLAYER_PATH_MAX_NODES = 16384; // covers a whole 128x128 level: long detours around walls still resolve
 
 /** Ticks of invulnerability after arriving on a level (reference: 10). */
 export const ARRIVAL_INVULN_TICKS = 10;

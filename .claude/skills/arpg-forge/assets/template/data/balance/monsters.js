@@ -19,7 +19,7 @@ export const monsters = {
   /** Unique monsters: level = 2*uniqueLevel (ref) → we use uniqueLevel + uniqueLevelAdd; xp ×2. ref §2.2 */
   unique: { levelAdd: 5, xpMult: 2, lightRadius: 3, packSize: [3, 5], minionHpMult: 2 }, // ref pack 8, minion hp ×2
   /** ref: passive regen LVL/128 HP per tick. */
-  regenPerLevelPerTick: 1 / 128,
+  regenPerLevelPerTick: 1 / 512, // ref is ~level/128 per tick; slower so low-damage starts can finish tanks
 
   // --- population -----------------------------------------------------------
   /** Monsters per level = perLevelBase + depth * perDepth (ref: 1 per 30 walkable tiles). */

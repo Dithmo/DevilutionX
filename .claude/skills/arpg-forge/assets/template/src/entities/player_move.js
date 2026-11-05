@@ -11,6 +11,7 @@
 import { findPath, dirFromDelta, dist } from '../world/pathfind.js';
 import { isWalkable, isSolid, inBounds, idx } from '../world/tiles.js';
 import { setAnim, advanceAnim, ANIM_FRAMES } from './anim.js';
+import { setDoorOpen } from './objects.js';
 import { PLAYER_PATH_MAX_NODES } from '../../data/balance/progression.js';
 
 const HALF = 0.5;
@@ -53,6 +54,14 @@ export function freeTile(level, e, x, y) {
   if (level.occupant[i] === e.id) level.occupant[i] = 0;
 }
 
+/** Closed, unlocked door object on (x,y), or null. The player walks through these, opening them. */
+export function closedDoorAt(level, x, y) {
+  for (const o of level.objects || []) {
+    if (o.kind === 'door' && o.tx === x && o.ty === y && !o.removed) return o.state !== 'open' && !o.locked ? o : null;
+  }
+  return null;
+}
+
 /** Can the actor step from (fx,fy) to the neighbouring (x,y) right now? @returns {boolean} */
 export function canStep(level, e, fx, fy, x, y) {
   if (!isWalkable(level.tiles, x, y)) return false;
@@ -76,11 +85,18 @@ export function canStep(level, e, fx, fy, x, y) {
 export function setPlayerPath(game, p, target, opts = {}) {
   const level = game.level;
   const from = futureTile(p);
-  const path = findPath(level.tiles, from, target, {
-    isBlocked: occupantBlocker(level, p.id),
+  const doors = new Set();
+  for (const o of level.objects || []) if (o.kind === 'door' && o.state !== 'open' && !o.locked && !o.removed) doors.add(o.ty * level.tiles.w + o.tx);
+  const base = {
+    isPassable: doors.size ? (x, y) => doors.has(y * level.tiles.w + x) : null,
     maxNodes: opts.maxNodes || PLAYER_PATH_MAX_NODES,
     allowTargetBlocked: true,
-  });
+  };
+  // Route around actors when possible; otherwise walk up to whatever blocks the way
+  // (a monster in a corridor) so the player can fight through; finally get as close as possible.
+  const path = findPath(level.tiles, from, target, { ...base, isBlocked: occupantBlocker(level, p.id) })
+    || findPath(level.tiles, from, target, base)
+    || (opts.allowPartial === false ? null : findPath(level.tiles, from, target, { ...base, isBlocked: occupantBlocker(level, p.id), allowPartial: true }));
   if (!path) return false;
   p.path = path.length ? path : null;
   p.pathGoal = { x: target.x | 0, y: target.y | 0 };
@@ -128,6 +144,11 @@ export function stepWalk(game, p, classDef) {
   }
   if (!p.walk) {
     const next = p.path[0];
+    const door = closedDoorAt(level, next.x, next.y);
+    if (door) {
+      setDoorOpen(game, door, true, level);
+      if (game.bus) game.bus.emit('sfx', { name: 'open', x: door.tx, y: door.ty });
+    }
     if (!canStep(level, p, p.tx, p.ty, next.x, next.y)) {
       p.path = null;
       if (p.anim === 'walk') setAnim(p, 'stand');
