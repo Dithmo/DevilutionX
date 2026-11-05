@@ -13,7 +13,7 @@ export const monsters = {
     { hpMult: 4, hpAdd: 200, dmgMult: 4, dmgAdd: 6, dmgPreAdd: 0, acAdd: 80, toHitAdd: 120, levelAdd: 30, xpMult: 4, xpPreAdd: 1000 },
   ],
   /** save.js stores difficulty as a name; index into `difficulty` above. */
-  difficultyNames: ['normal', 'nightmare', 'hell'],
+  difficultyNames: ['normal', 'veteran', 'elite'],
   /** ref: single player halves table HP. Our theme tables are already SP-sized, so 1. */
   hpMult: 1,
   /** Unique monsters: level = 2*uniqueLevel (ref) → we use uniqueLevel + uniqueLevelAdd; xp ×2. ref §2.2 */

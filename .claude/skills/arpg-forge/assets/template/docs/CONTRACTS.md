@@ -30,7 +30,10 @@ game = {
   mode: 'menu' | 'town' | 'dungeon' | 'dead' | 'win',
   rng,                      // core/rng createRng — ALL simulation randomness
   theme, balance, strings,  // data
+  difficulty: 'normal' | 'veteran' | 'elite',   // balance.monsters.difficultyNames
+  flags: { hardcore: boolean, ... },             // hardcore = permadeath: death deletes the save, no respawn
   level: Level | null,
+  levels: { [depth]: Level },  // every visited level persists for the session (and in saves)
   town: Level | null,       // cached hub so it persists
   player: Player,
   quests: { [questId]: { state: 'hidden'|'offered'|'active'|'done', progress: number, data: {} } },
@@ -40,7 +43,8 @@ game = {
   camera, input, audio, bus,          // core services
   nextId: number,                      // entity id counter (ids are never 0)
   stats: { kills, deaths, gold, deepest, playTicks },
-  debug: {...}                         // see Debug API
+  hooks: { ... },                      // late-bound callbacks, see Hooks
+  debug: { god: boolean }              // see Debug API
 }
 ```
 
@@ -148,15 +152,39 @@ Npc = Actor + { npcId, role, vendorType|null, stock: Item[], stockDepth, greetin
 
 ## Per-tick order (main.js owns this)
 
-1. `input.collect()` → player intent (click to move/attack/pickup/interact/talk, hotkeys)
-2. `updatePlayer(game)` — state machine, walking, attacks resolve on action frame, casting spawns missiles
-3. `updateMonsters(game)` — each: hit-recover → AI archetype decides → movement/attack/missile
-4. `updateObjects(game)` — doors closing, traps, lights
-5. `updateMissiles(game)` — move, collide, impact, expire
-6. `updateItems(game)` — drop animations, auto-pickup gold
-7. `updateQuests(game)` — evaluate triggers
-8. `updateFov(game)`, `updateUi(game)` (floats ttl, messages)
-9. render: `renderWorld` → `renderUi`
+1. `handleInput` — keys → `uiHandleKey`; clicks → identify cursor → `uiHandleClick` → world click
+   (left: monster=attack, npc=talk, object=interact, item=pickup, tile=move; right: cast selected skill).
+   Holding the left button re-issues move/attack every 4 ticks.
+2. Nothing below runs in `mode === 'menu'`, while `ui.loading`, or while the in-game menu is open (pause).
+3. `game.tick++`; `updatePlayer(game)` — state machine, walking (opens closed doors on its path),
+   attacks resolve on the action frame, casting spawns missiles, stagger grace counts down.
+4. Unless won: `updateMonsters` → `updateNpcs` → `updateObjects` → `updateMissiles` → `updateQuests`.
+5. `updateLight(game)` — town fully lit; dungeon: player FOV marks tiles explored, object lights merge in.
+6. Hardcore death deletes the save once; `updateUi(game)` (floats ttl, messages).
+7. render (interpolated by `alpha`): `renderWorld` when playing → `renderUi` always.
+
+## Hooks (`game.hooks`)
+
+Modules call each other through these so any module can be replaced or missing. Each installer
+spreads the existing table, so later installers override earlier ones.
+
+| Hook | Installed by | Purpose |
+|---|---|---|
+| `onPickup`, `onInteract`, `onTalk`, `onTownPortal`, `onIdentify`, `recalcPlayer` | `installPlayerHooks` (entities/player.js) | player intents that touch other systems |
+| `questStampsFor`, `createNpc`, `restockVendors`, `getDialogue`, `onPortal`, `onTownPortal`, `onStairs` | `installMetaHooks` (npc/npcs.js) | quests, NPCs, vendors, portals, stairs |
+| `changeLevel(game, depth, viaPortal)`, `onInteract`, `onTalk`, `menuAction(game, action)` | `installIntegrationHooks` (main.js) | level transitions, dialogue UI, menus |
+
+`menuAction` actions: `continue`, `save`, `load`, `mute`, `respawn` (refused in hardcore),
+`newGame` (`{classId, name, seed, difficulty, hardcore}`; without `classId` returns to the title), `quitToMenu`.
+
+## Movement and combat rules worth knowing
+
+- `world/pathfind.js` `findPath(tiles, from, to, {maxNodes, isBlocked, isPassable, allowDiagonal, allowTargetBlocked, allowPartial})`:
+  `isPassable(x,y)` lets the player path through solid tiles such as closed, unlocked doors.
+- `setPlayerPath` tries: path avoiding occupants → path ignoring occupants (walk up and fight) → partial path.
+- Player stagger: after a hit-recover the player gets `hitRecoverTicks + PLAYER_STAGGER_GRACE_TICKS`
+  of stagger immunity so packs cannot stun-lock (balance/combat.js).
+- Quest uniques spawn whenever their quest is not `done`; killing one force-activates the quest.
 
 ## Shared helper signatures other modules may call
 
@@ -180,11 +208,28 @@ Npc = Actor + { npcId, role, vendorType|null, stock: Item[], stockDepth, greetin
 
 ## Debug API (`window.__game`)
 
+Set when the page boots; `window.__game.ready` becomes `true` once content is loaded. Tests stop
+the loop and drive ticks with `step(n)`.
+
 ```js
-{ game, step(n), state() -> { mode, depth, tick, player:{level,hp,hpMax,mp,xp,gold,x,y,class}, counts:{monsters,alive,items,objects,missiles} },
-  newGame(classId, seed?), teleport(depth), give(baseId|'gold', amountOrQuality), spawn(typeId, dx, dy),
-  killAll(), setGodMode(bool), clickTile(tx, ty), castAt(skillId, tx, ty), openPanel(name), save(), load(), screenshotHints: [] }
+{ game, loop, ready,
+  step(n), state() -> { mode, depth, tick, seed, levelName, player:{level,hp,hpMax,mp,xp,gold,x,y,class},
+                        counts:{monsters,alive,items,objects,missiles}, quests, ui },
+  classes() -> classId[], newGame(classId?, seed?, {difficulty?, hardcore?}), teleport(depth),
+  give(baseId|'gold', amountOrQuality), gold(), item(baseId, quality) /* drops beside the player */,
+  spawn(typeId, dx, dy), killAll(), setGodMode(bool), xp(n),
+  clickTile(tx, ty, button?), castAt(skillId, tx, ty), attack(monsterId), interact(objectId), talk(npcId),
+  openPanel(name), closeAll(), save(slot?), load(slot?), menu(action), screenOf(x, y), reveal(), render(),
+  screenshotHints: [] }
 ```
+
+URL parameters: `?class=<id>` skips the title and starts that class, `?seed=`, `?difficulty=`, `?theme=`.
+
+## Tests
+
+`tools/validate_theme.mjs` (content), `tools/unit_*.mjs` (systems, Node only), `tools/smoke_test.mjs`
+(Chromium: every class, every depth, combat, loot, vendor, portal, save/load, panels, death,
+permadeath; `--quick` for one class and one depth per tier). Screenshots land in `tools/out/`.
 
 ## Events on `game.bus`
 

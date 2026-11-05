@@ -49,6 +49,8 @@ const FIELD_GAP = 10;
 const BIG_BUTTON_W = 150;
 const BIG_BUTTON_H = 32;
 const MENU_BUTTONS_Y = 440;
+const TOGGLE_W = 170;
+const TOGGLE_GAP = 16;
 const NAME_MAX = 16;
 const SEED_MAX = 12;
 const DEATH_TITLE_SIZE = 44;
@@ -316,9 +318,14 @@ export function drawDeathScreen(ctx, game) {
   const p = game.player || {};
   const summary = `${str(game, 'level', 'Level')} ${p.level || 1}   ${str(game, 'kills', 'Kills')}: ${st.kills || 0}   ${str(game, 'deepest', 'Deepest')}: ${st.deepest || 0}`;
   drawText(ctx, summary, uiLayout.viewW / 2, 260, { align: 'center', size: 12, color: pal.textDim, game });
-  screenButtons(ctx, game, [
-    { label: str(game, 'load', 'Load game'), action: { type: 'load', slot: 0 } },
+  const hardcore = !!(game.flags && game.flags.hardcore);
+  if (hardcore) drawText(ctx, str(game, 'permadeathNote', 'Permadeath: this hero is gone for good.'), uiLayout.viewW / 2, 282, { align: 'center', size: 13, color: pal.danger, game });
+  screenButtons(ctx, game, hardcore ? [
     { label: str(game, 'newGame', 'New game'), action: { type: 'newGame' } },
+    { label: str(game, 'quitToMenu', 'Quit to menu'), action: { type: 'quitToMenu' } },
+  ] : [
+    { label: str(game, 'respawn', 'Return to town'), action: { type: 'respawn' } },
+    { label: str(game, 'load', 'Load game'), action: { type: 'load', slot: 0 } },
     { label: str(game, 'quitToMenu', 'Quit to menu'), action: { type: 'quitToMenu' } },
   ], mx, my);
 }
@@ -398,6 +405,20 @@ export function drawMainMenu(ctx, game) {
   const caret = Math.floor((game.tick || Date.now() / 50) / CARET_BLINK_TICKS) % 2 === 0 ? '|' : '';
   drawField(ctx, game, str(game, 'name', 'Name'), m.name, 'name', FIELD_Y, m.focus === 'name' ? caret : '', mx, my);
   drawField(ctx, game, str(game, 'seed', 'Seed'), m.seed, 'seed', FIELD_Y + FIELD_H + FIELD_GAP, m.focus === 'seed' ? caret : '', mx, my);
+
+  const diffNames = (game.balance && game.balance.monsters && game.balance.monsters.difficultyNames) || ['normal', 'veteran', 'elite'];
+  m.difficulty = Math.max(0, Math.min(diffNames.length - 1, m.difficulty | 0));
+  const dn = diffNames[m.difficulty];
+  const toggles = [
+    { toggle: 'difficulty', label: `${str(game, 'difficulty', 'Difficulty')}: ${str(game, `difficulty_${dn}`, dn[0].toUpperCase() + dn.slice(1))}`, on: m.difficulty > 0 },
+    { toggle: 'hardcore', label: `${str(game, 'hardcore', 'Permadeath')}: ${m.hardcore ? str(game, 'on', 'On') : str(game, 'off', 'Off')}`, on: !!m.hardcore },
+  ];
+  toggles.forEach((t, i) => {
+    const r = { x: (uiLayout.viewW + FIELD_W) / 2 + TOGGLE_GAP + 30, y: FIELD_Y + i * (FIELD_H + FIELD_GAP), w: TOGGLE_W, h: FIELD_H };
+    drawButton(ctx, r, t.label, { game, hover: pointInRect(mx, my, r), size: 12 });
+    if (t.on) { ctx.strokeStyle = t.toggle === 'hardcore' ? pal.danger : pal.accent; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); }
+    registerHit(game, r, { kind: 'menuToggle', toggle: t.toggle, count: diffNames.length });
+  });
 
   const cls = classes[m.classIndex];
   const startR = { x: uiLayout.viewW / 2 - BIG_BUTTON_W - 10, y: MENU_BUTTONS_Y, w: BIG_BUTTON_W, h: BIG_BUTTON_H };

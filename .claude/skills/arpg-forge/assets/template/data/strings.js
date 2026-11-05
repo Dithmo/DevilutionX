@@ -25,7 +25,9 @@ export const DEFAULT_STRINGS = {
   newGame: 'New game', continue: 'Continue', loadGame: 'Load', saveGame: 'Save', deleteSave: 'Delete',
   loading: 'Loading', youDied: 'You died', victory: 'Victory', paused: 'Paused', quit: 'Quit',
   chooseClass: 'Choose your calling', enterName: 'Name', seed: 'Seed', difficulty: 'Difficulty',
-  easy: 'Gentle', normal: 'Normal', hard: 'Harsh',
+  difficulty_normal: 'Normal', difficulty_veteran: 'Veteran', difficulty_elite: 'Elite',
+  hardcore: 'Permadeath', on: 'On', off: 'Off', permadeathNote: 'Permadeath: this hero is gone for good.',
+  respawn: 'Return to town', quitToMenu: 'Quit to menu', load: 'Load game', start: 'Start',
   // quests
   questOffered: 'New task', questActive: 'In progress', questDone: 'Finished',
   questAccepted: 'Task taken', questComplete: 'Task finished', rewardGold: 'gold received',

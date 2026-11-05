@@ -45,7 +45,7 @@ const RIGHT = 2;
 const HOLD_REPEAT_TICKS = 4;      // click-and-hold re-issues the walk target every 4 ticks
 const LIGHT_EVERY_TICKS = 2;      // FOV refresh cadence when the player has not changed tile
 const DEFAULT_SLOT = 0;
-const DIFFICULTIES = ['normal', 'nightmare', 'hell'];
+const DIFFICULTIES = ['normal', 'veteran', 'elite'];
 
 /* ------------------------------------------------------------------ */
 /* Game object                                                         */
@@ -116,8 +116,6 @@ export async function loadContent(game, themeId = ACTIVE_THEME) {
   initSkills(game.theme.skills);
   game.audio.setDescriptors(game.theme.sfx || {});
   game.bus.on('sfx', (p) => { if (p && p.name) game.audio.play(p.name); });
-  game.bus.on('playerDied', () => { game.stats.deaths++; });
-  game.bus.on('monsterKilled', () => { game.stats.kills++; });
   if (typeof document !== 'undefined' && game.theme.meta.title) document.title = game.theme.meta.title;
   game.ui.loading = null;
   return game;

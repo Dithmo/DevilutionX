@@ -277,7 +277,7 @@ console.log('more archetypes');
   assert(sb && sb.speed === balMissiles.arch.bolt.speed && sb.range === balMissiles.arch.bolt.range && sb.look.shape === 'bolt' && Math.abs(sb.x - 20.5) < 1e-9, 'cast.js-style spec normalised');
   const sw = missile.spawnMissile(g8, { archetype: 'wall', owner: g8.player, from: { x: 20.5, y: 20.5 }, to: { x: 24.5, y: 20.5 }, dmg: { min: 1, max: 2 }, element: 'fire', speed: 0, range: 160, length: 3, duration: 100 });
   assert(sw.children.length === 7 && sw.children[0].range === 100, 'wall honours length (2·3+1 segments) and duration');
-  g8.difficulty = 'nightmare';
+  g8.difficulty = 'veteran';
   assert(monster.spawnMonster(g8, 'shambler', 5, 5, {}).level === 1 + balMonsters.difficulty[1].levelAdd, 'string difficulty names resolve');
 }
 

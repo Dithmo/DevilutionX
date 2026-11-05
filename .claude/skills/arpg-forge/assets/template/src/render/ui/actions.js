@@ -683,6 +683,11 @@ function mainMenuClick(game, h, button) {
     case 'menuField':
       m.focus = h.field;
       return;
+    case 'menuToggle':
+      if (h.toggle === 'hardcore') m.hardcore = !m.hardcore;
+      else m.difficulty = ((m.difficulty | 0) + 1) % Math.max(1, h.count | 0);
+      play(game, 'click');
+      return;
     case 'menuStart':
       startGame(game);
       return;
@@ -702,7 +707,9 @@ function startGame(game) {
   const seed = seedText === '' ? null : Number.isFinite(seedNum) ? seedNum >>> 0 : seedText;
   const name = (m.name || '').trim() || str(game, 'namePlaceholder', 'Hero');
   play(game, 'click');
-  menuAction(game, { type: 'newGame', classId: cls.id, name, seed });
+  const diffNames = (game.balance && game.balance.monsters && game.balance.monsters.difficultyNames) || ['normal', 'veteran', 'elite'];
+  const difficulty = diffNames[m.difficulty | 0] || diffNames[0];
+  menuAction(game, { type: 'newGame', classId: cls.id, name, seed, difficulty, hardcore: !!m.hardcore });
 }
 
 function mainMenuKey(game, key) {

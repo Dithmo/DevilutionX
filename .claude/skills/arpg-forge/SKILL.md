@@ -77,7 +77,11 @@ Common extensions and where they live:
 - **New skill archetype** → `src/entities/missile.js` (`ARCHETYPES` table) + `src/skills/skills.js` dispatch.
 - **New AI** → `src/entities/ai.js` archetype function; follow the walk-gate pattern there.
 - **New generator** → `src/world/levelgen/<name>.js` returning `{tiles, rooms, doorSpecs}`; register in `index.js`.
-- **Permadeath / difficulty modes / hardcore** → `game.difficulty` and `data/balance/monsters.js` scaling table.
+- **Permadeath / difficulty** → already built: the title screen has Difficulty (normal / veteran /
+  elite, scaling in `data/balance/monsters.js`) and Permadeath toggles; `game.flags.hardcore`
+  deletes the save on death and hides "Return to town". Rename them for the setting through
+  `strings.js` keys `difficulty_normal`, `difficulty_veteran`, `difficulty_elite`, `hardcore`,
+  `permadeathNote`, `respawn`. Only touch code to add a mode the template lacks.
 - **Real art** → set `look.sprite` on any descriptor; `render/sprites.js` prefers sprites to procedural shapes.
 - **Multiplayer** → not in the template. `references/systems/05-data-save-net-modding.md §D` is the design (deterministic lockstep, command catalog); budget a separate milestone.
 
@@ -87,12 +91,18 @@ list, and implement the chunks in order. The chunk lists are dependency-sorted f
 ## 5. Verify like a player would
 
 1. `node tools/validate_theme.mjs` — zero errors.
-2. `node tools/smoke_test.mjs` — boots the game headlessly, plays every class into every depth,
-   fights, loots, saves and loads, and writes screenshots to `tools/out/`. It must pass.
+2. `node tools/smoke_test.mjs` — boots the game in headless Chromium, walks every class from
+   the hub down the stairs, fights, casts, loots, trades, visits every depth (checks monsters,
+   reachable stairs, tier bosses), round-trips a town portal and a save, opens every panel, dies,
+   respawns, and checks permadeath. Screenshots go to `tools/out/`. It must pass (`--quick` while
+   iterating, the full run before handing over). When a check fails, the message says what the
+   player could not do; fix the theme or engine, not the test.
 3. **Look at the screenshots** (open the PNGs). Check: town readable, each tileset looks like
    its tier, HUD text legible, inventory items visible, a boss arena exists on the final depth.
 4. Play it for two minutes yourself through Playwright if you have time: click to move, kill
    something, pick up loot, open the inventory, buy a potion, descend. Fix what feels wrong.
+   `window.__game` (documented in `docs/CONTRACTS.md`) gives you `step`, `state`, `teleport`,
+   `spawn`, `give`, `clickTile`, `talk` and more; `?class=<id>&seed=<n>` skips the title screen.
 5. Grep the whole output for any proper noun from the reference game or from the IP the user
    may have alluded to. Ship zero.
 
@@ -100,8 +110,9 @@ list, and implement the chunks in order. The chunk lists are dependency-sorted f
 
 Deliver, in this order:
 - the game folder (`index.html`, `src/`, `data/`, `tools/`, `docs/DESIGN.md`, `README.md`),
-- a `README.md` with: how to run (`python3 serve.py` then open the URL), controls, the class
-  list, the tier list, and what was extended beyond the template,
+- the `README.md` the scaffold created, with `{{CLASSES}}` and `{{TIERS}}` replaced by the class
+  list and tier list, the controls table adjusted to any renamed panels, and a section on what was
+  extended beyond the template,
 - three screenshots (town, a mid-tier level with combat, the inventory panel),
 - a short changelog of engine changes you made (if any) so the user can upstream them.
 

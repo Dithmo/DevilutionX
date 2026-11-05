@@ -300,7 +300,7 @@ async function fight(page, shot, cls) {
     g.debug.god = false;
     return { kills: g.stats.kills - kills0, xp: p.xp - xp0, attacks, cast, picked, tried: drops.length, level: p.level };
   }, FIGHT_TICKS);
-  check(r.kills > 0, `${cls} kills ${r.kills}/3 adjacent monsters in melee (${r.attacks} attack orders)`, r);
+  check(r.kills > 0 && r.kills <= 4, `${cls} kills ${r.kills} of 3 melee + 1 cast target (${r.attacks} attack orders; each kill counted once)`, r);
   check(r.xp > 0, `${cls} gains ${r.xp} xp (level ${r.level})`);
   if (r.cast) check(r.cast.saw, `${cls} casts ${r.cast.skill}`, r.cast);
   check(r.tried > 0 && r.picked === r.tried, `picks up ${r.picked}/${r.tried} floor items`);
@@ -373,24 +373,55 @@ async function panels(page, shot) {
   check(s.ui.left === null && s.ui.right === null, 'panels close');
 }
 
+/** Drop the player to 1 HP under a pack and step until dead. Runs in the page. */
+const KILL_PLAYER = () => {
+  const api = window.__game;
+  const g = api.game;
+  g.debug.god = false;
+  g.player.hp = 1;
+  g.player.state.invulnTicks = 0;
+  for (let i = 0; i < 6; i++) api.spawn(g.level.monsters.find((m) => !m.uniqueId)?.typeId || g.theme.monsters[0].id, (i % 3) - 1, i < 3 ? -1 : 1);
+  let t = 0;
+  while (!g.player.dead && t++ < 1200) api.step(1);
+  api.step(40);
+  return { dead: g.player.dead, mode: g.mode, ticks: t };
+};
+
 async function death(page, shot) {
   console.log('# death');
-  const r = await page.evaluate(() => {
-    const api = window.__game;
-    const g = api.game;
-    g.debug.god = false;
-    g.player.hp = 1;
-    g.player.state.invulnTicks = 0;
-    for (let i = 0; i < 6; i++) api.spawn(g.level.monsters.find((m) => !m.uniqueId)?.typeId || g.theme.monsters[0].id, (i % 3) - 1, i < 3 ? -1 : 1);
-    let t = 0;
-    while (!g.player.dead && t++ < 1200) api.step(1);
-    api.step(40);
-    return { dead: g.player.dead, mode: g.mode, ticks: t };
-  });
+  const r = await page.evaluate(KILL_PLAYER);
   check(r.dead && r.mode === 'dead', `player dies under a pack (${r.ticks} ticks) and the death screen shows`, r);
   await shot('death');
+  const rs = await page.evaluate(() => { window.__game.menu({ type: 'respawn' }); window.__game.step(5); const s = window.__game.state(); return { mode: s.mode, depth: s.depth, dead: window.__game.game.player.dead, hp: window.__game.game.player.hp }; });
+  check(rs.mode === 'town' && rs.depth === 0 && !rs.dead && rs.hp > 0, 'respawn returns a living hero to town', rs);
+  await page.evaluate(() => window.__game.teleport(1));
+  await page.evaluate(KILL_PLAYER);
   const back = await page.evaluate(() => { window.__game.menu({ type: 'quitToMenu' }); return window.__game.state().mode; });
   check(back === 'menu', 'quit to menu from death screen');
+
+  console.log('# permadeath');
+  await page.evaluate(() => { const m = window.__game.game.ui.menu; m.hardcore = true; m.difficulty = 1; window.__game.render(); });
+  await shot('menu-options');
+  const hc = await page.evaluate((kill) => {
+    const api = window.__game;
+    const cls = api.game.ui.menu;
+    api.newGame(api.classes()[0].id || api.classes()[0], 7, { hardcore: true, difficulty: 'veteran' });
+    api.save();
+    const keys = () => Object.keys(localStorage).filter((k) => k.startsWith('arpg:')).length;
+    const savedKeys = keys();
+    api.teleport(1);
+    // eslint-disable-next-line no-new-func
+    const r = new Function(`return (${kill})()`)();
+    api.step(5);
+    const refused = api.menu({ type: 'respawn' }) === false;
+    return { dead: r.dead, mode: api.game.mode, savedKeys, afterKeys: keys(), refused, difficulty: api.game.difficulty, hardcore: api.game.flags.hardcore, menuHc: cls.hardcore };
+  }, KILL_PLAYER.toString());
+  check(hc.hardcore && hc.difficulty === 'veteran', 'new game honours hardcore + difficulty options', hc);
+  check(hc.dead && hc.mode === 'dead', 'hardcore hero dies');
+  check(hc.savedKeys > 0 && hc.afterKeys < hc.savedKeys, `hardcore death deletes the save (${hc.savedKeys} → ${hc.afterKeys})`, hc);
+  check(hc.refused, 'hardcore death refuses respawn');
+  await shot('death-hardcore');
+  await page.evaluate(() => window.__game.menu({ type: 'quitToMenu' }));
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });

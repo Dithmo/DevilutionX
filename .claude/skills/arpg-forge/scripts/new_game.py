@@ -8,7 +8,8 @@ What it does:
   1. Copies assets/template/ into <target-dir> (index.html, src/, data/, tools/, docs/).
   2. Creates data/themes/<theme_id>/ as a copy of the default theme with meta.js rewritten.
   3. Points data/active_theme.js at the new theme.
-  4. Writes a README.md stub and prints the theme files to edit, in dependency order.
+  4. Fills the README title/tagline (you fill {{CLASSES}} and {{TIERS}} once the theme is
+     written) and prints the theme files to edit, in dependency order.
 
 The default theme stays in place as a reference; delete it before shipping if you like.
 """
@@ -102,32 +103,16 @@ def main() -> int:
     )
 
     readme = target / "README.md"
-    readme.write_text(
-        f"# {args.title}\n\n"
-        f"{args.tagline}\n\n"
-        "## Run\n\n"
-        "```bash\n"
-        "python3 serve.py 8000\n"
-        "```\n\n"
-        "Then open http://localhost:8000 in a browser.\n\n"
-        "## Controls\n\n"
-        "- Left click: move / attack / pick up / talk / use\n"
-        "- Right click: cast the selected skill\n"
-        "- 1–8: belt slots · F1–F4: skill hotkeys · I inventory · C character · S skills · Q quests · Tab map · Esc menu\n\n"
-        "## Verify\n\n"
-        "```bash\n"
-        "node tools/validate_theme.mjs\n"
-        "node tools/smoke_test.mjs\n"
-        "```\n\n"
-        "## Credits\n\n"
-        "Built with the arpg-forge engine template (original code and content; no third-party game assets).\n"
-    )
+    text = readme.read_text()
+    text = text.replace("{{TITLE}}", args.title).replace("{{TAGLINE}}", args.tagline or "An original action-RPG.")
+    readme.write_text(text)
 
     print(f"Created {target}")
     print(f"Theme: data/themes/{theme_id}/  (active)")
     print("\nEdit these files in order (ids in later files reference earlier ones):")
     for name, what in THEME_FILE_ORDER:
         print(f"  data/themes/{theme_id}/{name:<14} {what}")
+    print("\nFinally replace {{CLASSES}} and {{TIERS}} in README.md.")
     print("\nThen run:")
     print(f"  cd {target} && node tools/validate_theme.mjs && node tools/smoke_test.mjs")
     return 0

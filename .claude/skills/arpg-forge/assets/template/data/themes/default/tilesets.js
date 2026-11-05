@@ -17,7 +17,7 @@ export const tilesets = [
   },
   {
     id: 'ossuary', name: 'The Ossuary', generator: 'halls', genOpts: { mirror: false, chamberStyle: 'ossuary' },
-    floors: ['#4e4a48', '#59534d', '#3f3b3a'], walls: ['#5c5a66', '#73707f'],
+    floors: ['#3c4352', '#454d5e', '#323845'], walls: ['#7c8398', '#959cb0'],
     accent: '#c9c2b0', lightTint: '#e8e0ff', voidColor: '#070709', doorColor: '#4a3b30',
     decor: ['bones', 'grate', 'rubble'], ambient: null,
   },
