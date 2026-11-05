@@ -111,7 +111,7 @@ export function drawHud(ctx, game) {
   // --- buttons ---
   LEFT_BUTTONS.forEach((b, i) => drawPanelButton(ctx, game, columnButtonRect(L.leftButtons, i), b, mx, my));
   RIGHT_BUTTONS.forEach((b, i) => drawPanelButton(ctx, game, columnButtonRect(L.rightButtons, i), b, mx, my));
-  if (p && p.statPoints > 0) {
+  if (p && p.statPoints > 0 && !ui.right && !ui.vendor) {
     const r = L.levelUpButton;
     drawButton(ctx, r, str(game, 'levelUp', 'Level up'), { game, hover: pointInRect(mx, my, r), color: pal.gold, size: 11 });
     registerHit(game, r, { kind: 'levelUp' });
@@ -378,4 +378,3 @@ export function formatNumber(n) {
   return String(Math.floor(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-export { focusMonster };
