@@ -200,16 +200,21 @@ export function stepActor(game, e) {
   const w = worldPos(e);
   e.prevX = w.x;
   e.prevY = w.y;
-  if (e.dead || !e.path) { e.anim = 'stand'; e.frame = 0; return; }
+  if (e.dead || !e.path) {
+    // Only a finished walk resets the pose; other anims belong to whoever set them.
+    if (e.anim === 'walk') { e.anim = 'stand'; e.frame = 0; }
+    return;
+  }
   const next = e.path[0];
-  if (e.moveT === 0) {
+  if (!e.moveT || !e.from) {
+    e.moveT = 0;
     if (makeOccupied(game, e)(next.x, next.y)) { e.path = null; e.anim = 'stand'; return; }
     e.from = { x: e.tx, y: e.ty };
     e.dir = dirFromDelta(next.x - e.tx, next.y - e.ty);
   }
   e.anim = 'walk';
-  e.frame++;
-  e.moveT += e.speed;
+  e.frame = (e.frame || 0) + 1;
+  e.moveT += e.speed || 0;
   const fx = e.from.x, fy = e.from.y;
   if (e.moveT >= 1 - MOVE_EPS) {
     e.tx = next.x; e.ty = next.y; e.ox = 0; e.oy = 0; e.moveT = 0;

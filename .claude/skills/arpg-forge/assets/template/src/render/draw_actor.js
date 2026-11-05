@@ -9,7 +9,7 @@
  * the exact facing. Walk bobs, attack lunges toward dir, hit flashes white,
  * death draws a lying body, cast raises the arms with a glow.
  */
-import { cached, blit, shade, lighten, dirToScreen, circle, ellipse, poly } from './draw_util.js';
+import { cached, blit, shade, lighten, mix, dirToScreen, circle, ellipse, poly } from './draw_util.js';
 
 const SPRITE_W = 80;
 const SPRITE_H = 96;
@@ -23,6 +23,8 @@ const HIT_FLASH = 0.65;
 const BOB_PX = 2;
 const LUNGE_PX = 8;
 const SWING_PX = 3;
+const LEG_BLEND = 0.45;
+const BOOT_H = 4;
 const SHADOW_RX = 12;
 const SHADOW_RY = 5;
 const SHADOW_ALPHA = 0.35;
@@ -127,9 +129,12 @@ function humanoid(c, p, s) {
     c.fillStyle = p.trim;
     c.fillRect(-s.hip, -3, s.hip * 2, 3);
   } else {
-    c.fillStyle = p.trim;
+    c.fillStyle = mix(p.body, p.trim, LEG_BLEND);
     c.fillRect(-s.hip + swing, -legH, legW, legH);
     c.fillRect(s.hip - legW - swing, -legH, legW, legH);
+    c.fillStyle = p.trim;
+    c.fillRect(-s.hip + swing, -BOOT_H, legW, BOOT_H);
+    c.fillRect(s.hip - legW - swing, -BOOT_H, legW, BOOT_H);
   }
   c.fillStyle = p.body;
   c.fillRect(-s.sh, torsoTop, s.sh * 2, torsoBot - torsoTop);

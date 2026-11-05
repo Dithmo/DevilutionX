@@ -23,6 +23,7 @@ const SHADOW_ALPHA = 0.3;
 const DARK = 0.6;
 const DARKER = 0.4;
 const STEP_COUNT = 4;
+const STEP_RISE = 3;
 const PORTAL_RINGS = 3;
 const PORTAL_RX = 14;
 const PORTAL_RY = 26;
@@ -95,18 +96,21 @@ const DRAWERS = {
     }
   },
   door(c, color, color2, state, orient) {
-    const mirror = orient === 'right' ? -1 : 1;
-    c.scale(mirror, 1);
-    const open = state === 'open';
-    const w = open ? DOOR_T : HALF_W;
-    const rise = open ? 0 : HALF_H;
-    c.fillStyle = color;
-    poly(c, [-w, rise - (open ? 0 : 0) + (open ? HALF_H : 0), 0, HALF_H, 0, HALF_H - WALL_H, -w, HALF_H - WALL_H - (open ? 0 : HALF_H)]);
-    c.fillStyle = color2;
-    if (!open) {
-      c.fillRect(-w + 4, -WALL_H * 0.5, 3, 3);
-      line(c, -w + 2, 0, -2, HALF_H - 2, 1);
+    // Closed: a slab filling the 'left' wall face (edge left-vertex -> bottom-vertex).
+    // Open: swung 90 degrees onto the neighbouring face plane, half length.
+    c.scale(orient === 'right' ? -1 : 1, 1);
+    if (state === 'open') {
+      c.fillStyle = shadeStr(color, DARK);
+      poly(c, [0, HALF_H, HALF_W * 0.5, HALF_H * 0.5, HALF_W * 0.5, HALF_H * 0.5 - WALL_H, 0, HALF_H - WALL_H]);
+      return;
     }
+    c.fillStyle = color;
+    poly(c, [-HALF_W, 0, 0, HALF_H, 0, HALF_H - WALL_H, -HALF_W, -WALL_H]);
+    c.strokeStyle = shadeStr(color, DARKER);
+    line(c, -HALF_W + DOOR_T, -WALL_H + DOOR_T, -HALF_W + DOOR_T, DOOR_T * 0.5, 1);
+    line(c, -DOOR_T, HALF_H - WALL_H + DOOR_T, -DOOR_T, HALF_H - DOOR_T * 0.5, 1);
+    c.fillStyle = color2;
+    c.fillRect(-DOOR_T * 2, -WALL_H * 0.45, 3, 3);
   },
   breakable(c, color, color2, state) {
     shadow(c, 12, 6);
@@ -147,19 +151,36 @@ const DRAWERS = {
     circle(c, tilt * 8, -23, 3);
   },
   stairs(c, color, color2, state) {
+    // Strips parallel to the left->bottom edge, from the top-left edge (t=0)
+    // to the bottom-right edge (t=1). Down: strips darken into a hole.
+    // Up: strips lighten and rise a few px each.
     const down = state !== 'up';
-    c.fillStyle = down ? shadeStr(color, DARKER) : color;
-    diamond(c, 0, 0, HALF_W - 4, HALF_H - 2);
-    c.strokeStyle = down ? color : color2;
-    for (let i = 1; i < STEP_COUNT; i++) {
-      const t = i / STEP_COUNT;
-      const rise = down ? 0 : -i * 3;
-      line(c, -HALF_W * (1 - t) + 2, -HALF_H * t + rise, HALF_W * t - 2, HALF_H * (1 - t) - HALF_H * t * 0 + rise - HALF_H * (1 - t) + HALF_H * (1 - t), 2);
+    const hw = HALF_W - 3;
+    const hh = HALF_H - 1;
+    for (let i = 0; i < STEP_COUNT; i++) {
+      const t0 = i / STEP_COUNT;
+      const t1 = (i + 1) / STEP_COUNT;
+      const k = down ? 1 - (i / STEP_COUNT) * 0.8 : 0.7 + (i / STEP_COUNT) * 0.5;
+      const rise = down ? 0 : -i * STEP_RISE;
+      c.fillStyle = shadeStr(color, k);
+      poly(c, [
+        -hw + t0 * hw, -t0 * hh + rise, t0 * hw, hh - t0 * hh + rise,
+        t1 * hw, hh - t1 * hh + rise, -hw + t1 * hw, -t1 * hh + rise,
+      ]);
+      if (!down && i > 0) {
+        c.fillStyle = shadeStr(color, DARKER);
+        poly(c, [
+          -hw + t0 * hw, -t0 * hh + rise, t0 * hw, hh - t0 * hh + rise,
+          t0 * hw, hh - t0 * hh + rise + STEP_RISE, -hw + t0 * hw, -t0 * hh + rise + STEP_RISE,
+        ]);
+      }
     }
-    if (down) {
-      c.fillStyle = 'rgba(0,0,0,0.6)';
-      diamond(c, 6, 3, HALF_W * 0.45, HALF_H * 0.45);
-    }
+    c.strokeStyle = color2;
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(0, -hh); c.lineTo(hw, 0); c.lineTo(0, hh); c.lineTo(-hw, 0);
+    c.closePath();
+    c.stroke();
   },
   portal(c, color, color2, state, orient, frame) {
     c.strokeStyle = color;

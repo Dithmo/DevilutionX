@@ -10,8 +10,8 @@
  * level.palette = { floors:[[base, speckle], ...], walls:[[left, right, top], ...],
  *                   stairs:{color,color2} } indexed by (floor-1) / (wall-1).
  */
-import { worldToScreen, renderPos, worldPos, HALF_W, HALF_H } from './camera.js';
-import { drawTile, drawWall, drawActor, drawItemGlyph, drawObject, drawMissile, drawTileOutline, lightFactor, WALL_H, TILE_W, TILE_H } from './sprites.js';
+import { worldToScreen, renderPos, worldPos, HALF_W } from './camera.js';
+import { drawTile, drawWall, drawActor, drawItemGlyph, drawObject, drawMissile, drawTileOutline, lightFactor, WALL_H, TILE_W } from './sprites.js';
 import { T, idx, inBounds } from '../world/tiles.js';
 
 const DARK_LIGHT = 2; // explored but not currently lit
@@ -215,5 +215,3 @@ export function getEntityAtScreen(game, sx, sy) {
   }
   return best;
 }
-
-export { HALF_W, HALF_H, TILE_H };

@@ -1,0 +1,129 @@
+# Theme schema
+
+A theme is a directory `data/themes/<id>/` with one ES module per content area and an `index.js`
+that merges them into a single object. The engine loads `data/themes/<id>/index.js` where `<id>`
+comes from `data/active_theme.js` (one line: `export default 'default'`).
+
+Every `id` is a short snake_case string unique within its table. Colours are CSS strings.
+Ranges are `[lo, hi]` inclusive. All text is plain strings (no markup).
+
+```
+data/themes/<id>/
+  index.js        merges and exports { meta, palette, tilesets, tiers, town, classes, monsters,
+                  uniqueMonsters, items, skills, objects, altarEffects, npcs, quests, flavor, sfx, strings }
+  meta.js         { id, title, tagline, version }
+  palette.js      { bg, panel, panelBorder, text, textDim, accent, hp, mp, xp, gold,
+                    rarity: { normal, magic, rare, unique }, danger, good, light }
+  tilesets.js     [ Tileset ]
+  world.js        { tiers: [ Tier ], town: Town, maxDepth }
+  classes.js      [ PlayerClass ]
+  monsters.js     { monsters: [ MonsterType ], uniques: [ UniqueMonster ] }
+  items.js        { bases: [ ItemBase ], prefixes: [ Affix ], suffixes: [ Affix ], uniques: [ UniqueItem ], consumables: [ Consumable ] }
+  skills.js       [ Skill ]
+  objects.js      { objects: [ ObjectType ], altarEffects: [ AltarEffect ] }
+  npcs.js         [ Npc ]
+  quests.js       [ Quest ]
+  flavor.js       { deathLines, loadingTips, intro, outro, levelName(depth), welcome }
+  sfx.js          { [sfxName]: SynthDescriptor }
+  strings.js      UI vocabulary overrides (see data/strings.js for keys)
+```
+
+## Tileset
+
+```js
+{ id, name, generator: 'rooms' | 'caves' | 'halls' | 'maze',
+  floors: [color×3..4], walls: [color×2..3], accent: color, lightTint: color, voidColor: color,
+  doorColor: color, decor: ['pillar','rubble','grate','vent','crate','bones','puddle'] (subset),
+  ambient: sfxName|null }
+```
+
+## Tier / Town
+
+```js
+Tier = { id, name, tilesetId, depths: [lo, hi], monsterLevel: [lo, hi], bossId: uniqueMonsterId|null,
+         monsterPool: [monsterTypeId], objectPool: [objectTypeId], themedRooms: ['treasure','library','shrine','armory','barrel','torture','monsterDen'] }
+Town = { name, size: [w, h], layout: 'plaza' | 'street' | 'ring', npcPlacements: [{ npcId, x, y }],
+         dungeonEntrance: {x, y}, decor: [{kind, x, y}], groundColors: [color×3], buildingColors: [color×3] }
+maxDepth = last tier's depths[1]
+```
+
+## PlayerClass
+
+```js
+{ id, name, blurb,
+  base: { str, mag, dex, vit }, max: { str, mag, dex, vit },
+  startLife, startMana, lifePerLevel, manaPerLevel, lifePerVit, manaPerMag,   // see balance for formula
+  toHitBase, blockBase, critOnLevel: boolean,
+  frames: { attack, cast, hitRecover, walk, death, actionFrame },            // ticks per anim and which frame resolves
+  weaponPref: 'melee' | 'ranged' | 'caster',
+  startKit: [ { baseId, count? } ], startSkill: skillId|null,
+  skillPool: [skillId] (skills this class can learn from tomes), levelSkills: { [level]: skillId },
+  look: { silhouette: 'bulky'|'lean'|'robed', bodyColor, trimColor } }
+```
+
+## MonsterType
+
+```js
+{ id, name, tier, ai: 'rusher'|'skirmisher'|'ranged'|'caster'|'ambusher'|'charger'|'spawner'|'flier'|'tank'|'boss',
+  level, hp: [lo,hi], dmg: [lo,hi], ac, toHit, xp,
+  speed: { walkTicksPerTile, attackTicks, hitTicks, deathTicks, actionFrame },
+  resist: { phys, fire, cold, shock, arcane }   // 0 none, 1 resist (¼ dmg), 2 immune
+  flags: ['undead','flies','noLoot','noHitRecover','ranged','opensDoors','leader'],
+  pack: { size: [lo,hi], leader: boolean }, intelligence: 0..3,
+  missile: { archetype, element, dmg: [lo,hi] }|null, special: string|null,
+  look: { silhouette, bodyColor, trimColor, size: 1 }, sfx: { attack, hit, die } }
+UniqueMonster = { id, name, baseTypeId, level, hp, dmg: [lo,hi], ai?, resist?, flags?, dropUniqueId?, look, packType: 'none'|'followers'|'elite' , questId|null, depth }
+```
+
+## Items
+
+```js
+ItemBase = { id, name, slot, type, size: {w,h}, level, price, look: {glyph, color},
+             dmg?: [lo,hi], ac?: [lo,hi], dur?: number, req?: {str?, dex?, mag?}, twoHanded?: boolean,
+             hands?: 1|2, speed?: 'slow'|'normal'|'fast', dropWeight: number, classWeight?: { [classId]: mult } }
+Affix = { id, name, kind: 'prefix'|'suffix', slots: [slot|type], minLevel, maxLevel?, stat, range: [lo,hi],
+          priceAdd: [lo,hi], priceMult?: number, cursed?: boolean, power: 1..3 (for rare rolls) }
+UniqueItem = { id, name, baseId, level, effects: { [stat]: value }, price, look }
+Consumable = { id, name, kind: 'potion'|'scroll'|'tome'|'elixir'|'key'|'misc', effect: { type: 'heal'|'mana'|'rejuv'|'stat'|'castSkill'|'identify'|'townPortal'|'learnSkill', value?, skillId? },
+               level, price, belt: boolean, look, dropWeight }
+```
+
+## Skill
+
+```js
+{ id, name, blurb, archetype: 'bolt'|'pierce'|'homing'|'nova'|'chain'|'wall'|'groundAoe'|'heal'|'buff'|'blink'|'summon'|'townPortal'|'identify'|'melee'|'multishot',
+  element, manaBase, manaPerLevel, manaMin, minMag, classes: [classId], learnLevel,
+  dmg: { base: [lo,hi], perCasterLevel: [lo,hi], perSkillLevel: [lo,hi] },  // dmg = base + perCasterLevel*clvl + perSkillLevel*slvl
+  missile: { speed, range, radius?, count?, spread? }, buff?: { stat, value, duration },
+  look: { color, glyph }, sfx }
+```
+
+## Objects
+
+```js
+ObjectType = { id, name, kind: 'chest'|'door'|'breakable'|'altar'|'lever'|'sign'|'trap'|'fountain'|'bookstand',
+               tilesets: [tilesetId]|'all', solid, blocksLight, look: { color, shape }, lootTable?: { count: [lo,hi], goodChance },
+               trapChance?: number, text?: string }
+AltarEffect = { id, text, weight, apply: 'healFull'|'manaFull'|'swapStats'|'randomResist'|'dropGold'|'identifyAll'|'curseItem'|'blessItem'|'levelUpSkill'|'revealMap'|'spawnMonsters'|'teleport'|'buffDamage'|'drainMana', params?: {} }
+```
+
+## Npc / Quest
+
+```js
+Npc = { id, name, title, role: 'healer'|'smith'|'arcanist'|'questgiver'|'gossip'|'wanderer'|'storyteller',
+        vendorType: 'weapons'|'armor'|'magic'|'potions'|'junk'|null, services: ['heal','identify','repair','recharge'] (subset),
+        look, greeting: [string], gossip: [string], questLines: { [questId]: { offer: string, active: string, done: string } } }
+Quest = { id, name, tier, depth, type: 'killBoss'|'fetch'|'clearArea'|'collectN'|'findNpc',
+          giverId, target: { uniqueMonsterId? , itemBaseId?, objectTypeId?, count?, npcId? },
+          reward: { xp, gold, itemBaseId?, uniqueItemId?, skillId? },
+          text: { journal, started, progress, done }, mapStamp: 'bossRoom'|'vault'|'den'|null, spOnly: false }
+```
+
+## Flavor / Sfx / Strings
+
+```js
+flavor = { deathLines: [string], loadingTips: [string], intro: [string], outro: [string], welcome: string,
+           levelName: (depth, tierName) => string }
+SynthDescriptor = { type: 'sine'|'square'|'saw'|'triangle'|'noise', freq, slide?, dur, decay?, volume? }
+strings = { life: 'Life', mana: 'Mana', gold: 'Gold', potion: 'Potion', skills: 'Skills', town: 'Town', ... }
+```
