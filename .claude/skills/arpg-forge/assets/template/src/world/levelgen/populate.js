@@ -79,17 +79,17 @@ function reserveRoom(level, room, kind) {
   for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++) setFlag(level.tiles, x, y, T.NO_SPAWN);
 }
 
-function placeStairs(game, level, tier) {
+function placeStairs(game, level, tier, rng) {
   const cfg = bal(game).stairs;
   const { up, down } = level.stairs;
   if (up) {
     setFlag(level.tiles, up.x, up.y, T.STAIRS_UP);
-    createObject(game, 'stairs_up', up.x, up.y, { level, state: 'up', linkDepth: level.depth - 1 });
+    createObject(game, 'stairs_up', up.x, up.y, { level, rng, state: 'up', linkDepth: level.depth - 1 });
     markNoSpawn(level.tiles, up.x, up.y, cfg.haloRadius);
   }
   if (down) {
     setFlag(level.tiles, down.x, down.y, T.STAIRS_DOWN);
-    createObject(game, 'stairs_down', down.x, down.y, { level, state: 'down', linkDepth: level.depth + 1 });
+    createObject(game, 'stairs_down', down.x, down.y, { level, rng, state: 'down', linkDepth: level.depth + 1 });
     markNoSpawn(level.tiles, down.x, down.y, cfg.haloRadius);
   }
 }
@@ -99,7 +99,7 @@ function placeDoors(game, level, tier, rng) {
   if (!doorTypes.length) return;
   for (const d of level.doorSpecs || []) {
     if (!hasFlag(level.tiles, d.x, d.y, T.DOOR) || level.objects.some((o) => o.tx === d.x && o.ty === d.y)) continue;
-    createObject(game, rng.pick(doorTypes), d.x, d.y, { level });
+    createObject(game, rng.pick(doorTypes), d.x, d.y, { level, rng });
   }
 }
 
@@ -122,7 +122,7 @@ function placeObjects(game, level, rng, typeIds, n, opts = {}) {
   for (let i = 0; i < n && typeIds.length; i++) {
     const spot = randomFreeTile(level, rng, { game, ...opts });
     if (!spot) break;
-    made.push(createObject(game, rng.pick(typeIds), spot.x, spot.y, { level, ...(opts.create || {}) }));
+    made.push(createObject(game, rng.pick(typeIds), spot.x, spot.y, { level, rng, ...(opts.create || {}) }));
   }
   return made;
 }
@@ -132,10 +132,10 @@ function scatterObjects(game, level, tier, rng) {
   const trapPct = cfg.chestTrapPctByTier[Math.min(level.tier, cfg.chestTrapPctByTier.length - 1)];
   const chestTypes = typesOfKind(game, level, tier, 'chest');
   for (let i = 0, n = rangeOf(rng, cfg.chests); i < n && chestTypes.length; i++) {
-    const spot = randomFreeTile(level, rng, { game, margin: cfg.spawnMargin });
+    const spot = randomFreeTile(level, rng, { game, margin: cfg.spawnMargin }) || randomFreeTile(level, rng, { game });
     if (!spot) break;
     const typeId = chestTypes.length > 1 && rng.chance(cfg.largeChestPct) ? chestTypes[chestTypes.length - 1] : chestTypes[0];
-    createObject(game, typeId, spot.x, spot.y, { level, trapped: rng.chance(trapPct), lootLevel: itemLevelFor(tier, level.depth) });
+    createObject(game, typeId, spot.x, spot.y, { level, rng, trapped: rng.chance(trapPct), lootLevel: itemLevelFor(tier, level.depth) });
   }
   const breakTypes = typesOfKind(game, level, tier, 'breakable');
   let left = rangeOf(rng, cfg.breakables);
@@ -154,7 +154,7 @@ function scatterObjects(game, level, tier, rng) {
         if (!next) break;
         cur = next;
       }
-      createObject(game, rng.pick(breakTypes), cur.x, cur.y, { level, explosive: rng.chance(cfg.explosivePct), lootLevel: itemLevelFor(tier, level.depth) });
+      createObject(game, rng.pick(breakTypes), cur.x, cur.y, { level, rng, explosive: rng.chance(cfg.explosivePct), lootLevel: itemLevelFor(tier, level.depth) });
       left--;
     }
   }
@@ -169,7 +169,7 @@ function scatterItems(game, level, tier, rng) {
   const ilvl = itemLevelFor(tier, level.depth);
   for (let i = 0, n = rangeOf(rng, cfg.groundItems); i < n; i++) {
     const s = randomFreeTile(level, rng, { game });
-    if (s) placeGroundItem(game, level, deps.generateItem?.(game, { level: ilvl, quality: 'any', source: 'floor' }), s.x, s.y);
+    if (s) placeGroundItem(game, level, deps.generateItem?.(game, { level, rng: ilvl, quality: 'any', source: 'floor' }), s.x, s.y);
   }
   for (let i = 0, n = rangeOf(rng, cfg.goldPiles); i < n; i++) {
     const s = randomFreeTile(level, rng, { game });
@@ -215,7 +215,7 @@ function furnishThemedRoom(game, level, tier, room, rng) {
   const ilvl = itemLevelFor(tier, level.depth);
   const inRoom = { room, allowNoSpawn: true, game };
   const put = (kind, n, extra = {}) => placeObjects(game, level, rng, typesOfKind(game, level, tier, kind), n, { ...inRoom, ...extra });
-  const dropGood = (n) => { for (let i = 0; i < n; i++) { const s = randomFreeTile(level, rng, inRoom); if (s) placeGroundItem(game, level, deps.generateItem?.(game, { level: ilvl, quality: 'good', onlyGood: true, source: room.kind }), s.x, s.y); } };
+  const dropGood = (n) => { for (let i = 0; i < n; i++) { const s = randomFreeTile(level, rng, inRoom); if (s) placeGroundItem(game, level, deps.generateItem?.(game, { level, rng: ilvl, quality: 'good', onlyGood: true, source: room.kind }), s.x, s.y); } };
   const c = roomCentre(room);
   switch (room.kind) {
     case 'treasure':
@@ -231,7 +231,7 @@ function furnishThemedRoom(game, level, tier, room, rng) {
     case 'shrine': {
       const spot = wallSpot(level, room, rng);
       const altars = typesOfKind(game, level, tier, 'altar');
-      if (spot && altars.length) createObject(game, rng.pick(altars), spot.x, spot.y, { level });
+      if (spot && altars.length) createObject(game, rng.pick(altars), spot.x, spot.y, { level, rng });
       const braziers = objectTypes(game).filter((t) => t.decor && t.light && (t.tilesets === 'all' || t.tilesets.includes(level.tilesetId))).map((t) => t.id);
       placeObjects(game, level, rng, braziers, 2, inRoom);
       break;
@@ -289,7 +289,7 @@ function spawnStampUnique(game, level, st, x, y) {
 
 /** Quest item with no room stamp: tuck it into an existing chest, else drop it on the floor. */
 function placeLooseQuestItem(game, level, tier, st, rng) {
-  const item = deps.generateItem?.(game, { level: itemLevelFor(tier, level.depth), baseId: st.itemBaseId, source: 'quest' });
+  const item = deps.generateItem?.(game, { level, rng: itemLevelFor(tier, level.depth), baseId: st.itemBaseId, source: 'quest' });
   if (!item) return;
   const chest = rng.pick(level.objects.filter((o) => o.kind === 'chest' && !o.questLoot));
   if (chest) { chest.questLoot = item; return; }
@@ -316,15 +316,15 @@ function applyStamp(game, level, tier, st, rng) {
   if (st.kind === 'vault') {
     const linkId = `vault:${st.questId || level.depth}`;
     for (const o of level.objects) if (o.kind === 'door' && ringHas(room, o.tx, o.ty)) { o.locked = true; o.linkId = linkId; }
-    const questItem = st.itemBaseId ? deps.generateItem?.(game, { level: ilvl, baseId: st.itemBaseId, source: 'quest' }) : null;
+    const questItem = st.itemBaseId ? deps.generateItem?.(game, { level, rng: ilvl, baseId: st.itemBaseId, source: 'quest' }) : null;
     const chestTypes = typesOfKind(game, level, tier, 'chest');
     const spot = randomFreeTile(level, rng, { room, allowNoSpawn: true, game });
-    if (spot && chestTypes.length) createObject(game, chestTypes[chestTypes.length - 1], spot.x, spot.y, { level, questLoot: questItem, lootLevel: ilvl });
+    if (spot && chestTypes.length) createObject(game, chestTypes[chestTypes.length - 1], spot.x, spot.y, { level, rng, questLoot: questItem, lootLevel: ilvl });
     const levers = typesOfKind(game, level, tier, 'lever');
     const far = (level.rooms || []).filter((r) => r !== room && !r.reserved).sort((a, b) => Math.hypot(b.x - room.x, b.y - room.y) - Math.hypot(a.x - room.x, a.y - room.y));
     const leverRoom = far[rng.rand(Math.max(1, Math.ceil(far.length * HALF)))];
     const ls = randomFreeTile(level, rng, { room: leverRoom, game }) || randomFreeTile(level, rng, { game });
-    if (ls && levers.length) createObject(game, levers[0], ls.x, ls.y, { level, linkId });
+    if (ls && levers.length) createObject(game, levers[0], ls.x, ls.y, { level, rng, linkId });
   }
 }
 
@@ -336,7 +336,7 @@ function applyStamp(game, level, tier, st, rng) {
  * @param {object} [rng] forked rng (default: game.rng.fork('populate:'+depth))
  */
 export function populateLevel(game, level, tier, rng = game.rng.fork(`populate:${level.depth}`)) {
-  placeStairs(game, level, tier);
+  placeStairs(game, level, tier, rng);
   placeDoors(game, level, tier, rng);
   const stamps = questStampsFor(game, level);
   level.questStamps = stamps;

@@ -15,7 +15,7 @@ export const LEVELS = {
   grid: { rooms: [48, 48], halls: [48, 48], caves: [56, 56], mirrored: [40, 40] },
 
   /** Minimum walkable floor tiles per generator. (ref: A 533/693/761 of 1600, B void<=700, C 600, D 692) */
-  minFloor: { rooms: 480, halls: 480, caves: 800, mirrored: 380 },
+  minFloor: { rooms: 600, halls: 480, caves: 700, mirrored: 450 },
 
   stairs: {
     minDist: 15,        // Chebyshev tiles between up and down stairs
@@ -29,10 +29,11 @@ export const LEVELS = {
 
   /** Generator A/B hybrid: BSP rooms, random-walk corridors, doors, pillared chambers. */
   rooms: {
-    leafMin: 6,               // BSP leaf side (room = leaf - 2 margin)         (ref B: rooms 4..10)
-    leafMax: 12,
-    splitPct: 55,             // chance to split a leaf that fits but is not forced
+    leafMin: 7,               // BSP leaf side (room = leaf - 2 margin)         (ref B: rooms 4..10)
+    leafMax: 14,
+    splitPct: 35,             // chance to split a leaf that fits but is not forced
     roomMin: 4,
+    roomRolls: 2,             // room side = max of this many uniform rolls (bias toward large rooms)
     skipRoomPct: 8,           // leaves left empty for variety
     chambers: [0, 3],         // pillared 9x9 chambers per level               (ref A: 0..3)
     chamberSize: 9,

@@ -181,10 +181,14 @@ export function generateLevel(game, depth) {
   level.floorCount = accepted.floor;
   level.palette = paletteFor(tileset, cfg.palette);
   level.name = theme.flavor?.levelName?.(depth, tier.name) || `${tier.name}, depth ${depth}`;
-  const near = (p) => (p ? freeTileNear(level, p.x, p.y, cfg.stairs.entrySearch, () => true) || p : null);
+  const near = (p) => (p ? freeTileNear(level, p.x, p.y, cfg.stairs.entrySearch, (x, y) => !hasFlag(level.tiles, x, y, T.STAIRS_UP | T.STAIRS_DOWN)) || p : null);
   level.entry = near(level.stairs.up);          // set before populate: monster placement keeps clear of it
   level.entryBelow = near(level.stairs.down);
-  populateLevel(game, level, tier, rng.fork('populate'));
+  // Reference behaviour: re-seed the simulation rng before population so monsters/items
+  // (placed by other modules through game.rng) are reproducible from the level seed alone.
+  const savedRng = game.rng;
+  game.rng = rng.fork('sim');
+  try { populateLevel(game, level, tier, rng.fork('populate')); } finally { game.rng = savedRng; }
   level.entry = near(level.stairs.up);
   level.entryBelow = near(level.stairs.down);
   level.exploredAtStart = countFloor(level.tiles);

@@ -169,6 +169,9 @@ function placeFences(tiles, rng, cfg) {
     if (!gaps.length) continue;
     const gap = rng.pick(gaps);
     for (const c of cells) if (c !== gap) setWall(tiles, c.x, c.y, FENCE_STYLE);
+    // A fence laid along a corridor would sever it: keep the floor a single component or revert.
+    const { sizes } = components(tiles.w, tiles.h, (i) => isFloor(tiles, i % tiles.w, (i / tiles.w) | 0));
+    if (sizes.length - 1 > 1) { for (const c of cells) if (c !== gap) carveRect(tiles, rng, c.x, c.y, 1, 1, FLOOR); continue; }
     placed++;
   }
 }

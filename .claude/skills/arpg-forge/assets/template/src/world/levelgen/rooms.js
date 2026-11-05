@@ -55,8 +55,9 @@ function makeRoom(leaf, rng, cfg) {
   if (rng.chance(cfg.skipRoomPct)) return null;
   const maxW = leaf.w - 2;
   const maxH = leaf.h - 2;
-  const w = rng.range(Math.min(cfg.roomMin, maxW), maxW);
-  const h = rng.range(Math.min(cfg.roomMin, maxH), maxH);
+  const side = (max) => { let best = 0; for (let i = 0; i < cfg.roomRolls; i++) best = Math.max(best, rng.range(Math.min(cfg.roomMin, max), max)); return best; };
+  const w = side(maxW);
+  const h = side(maxH);
   return { x: leaf.x + 1 + rng.rand(maxW - w + 1), y: leaf.y + 1 + rng.rand(maxH - h + 1), w, h, kind: 'room' };
 }
 

@@ -74,11 +74,12 @@ export function setDoorOpen(game, obj, open, level = game.level) {
  * @param {string} typeId
  * @param {number} tx
  * @param {number} ty
- * @param {{level?:object, state?:string, trapped?:boolean, explosive?:boolean, linkId?:string, locked?:boolean, text?:string, light?:number, lootLevel?:number, linkDepth?:number, questLoot?:object, look?:object}} [opts]
+ * @param {{level?:object, rng?:object, state?:string, trapped?:boolean, explosive?:boolean, linkId?:string, locked?:boolean, text?:string, light?:number, lootLevel?:number, linkDepth?:number, questLoot?:object, look?:object}} [opts]
  * @returns {object} the object (also pushed to level.objects)
  */
 export function createObject(game, typeId, tx, ty, opts = {}) {
   const level = opts.level || game.level;
+  const rng = opts.rng || game.rng;   // generators pass their forked rng so levels stay reproducible
   const type = objectTypeById(game, typeId) || { id: typeId, name: typeId, kind: 'sign', solid: true, look: {} };
   if (!game.nextId) game.nextId = 1;
   const obj = {
@@ -86,10 +87,10 @@ export function createObject(game, typeId, tx, ty, opts = {}) {
     solid: !!type.solid, blocksLight: !!type.blocksLight, state: opts.state || DEFAULT_STATE[type.kind] || '',
     look: { ...type.look, ...(opts.look || {}) }, loot: null, trap: null, linkId: opts.linkId || null,
     text: opts.text || type.text || '', light: opts.light ?? type.light ?? 0, decor: !!type.decor, hidden: !!type.hidden,
-    locked: !!opts.locked, explosive: !!opts.explosive, lootLevel: opts.lootLevel || level.depth || 1, lootSeed: game.rng.next(),
+    locked: !!opts.locked, explosive: !!opts.explosive, lootLevel: opts.lootLevel || level.depth || 1, lootSeed: rng.next(),
     linkDepth: opts.linkDepth ?? null, questLoot: opts.questLoot || null, effect: type.effect || null, removed: false,
   };
-  if (type.lootTable) obj.loot = { count: game.rng.range(type.lootTable.count[0], type.lootTable.count[1]), quality: type.lootTable.goodChance || 0 };
+  if (type.lootTable) obj.loot = { count: rng.range(type.lootTable.count[0], type.lootTable.count[1]), quality: type.lootTable.goodChance || 0 };
   if (opts.trapped) obj.trap = { missile: type.trapMissile || 'bolt' };
   if (obj.kind === 'door') {
     obj.look.orient = doorOrient(level.tiles, tx, ty);

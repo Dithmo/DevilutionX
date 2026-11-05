@@ -110,18 +110,18 @@ export function buildTown(game) {
     const style = (i % Math.max(1, town.buildingColors.length)) + 1;
     for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) setWall(tiles, x, y, style);
     const d = doorSpot(b);
-    if (inBounds(tiles, d.x, d.y) && DOOR_SIDES.includes(b.door)) createObject(game, 'sign_post', d.x, d.y, { level, text: b.name });
+    if (inBounds(tiles, d.x, d.y) && DOOR_SIDES.includes(b.door)) createObject(game, 'sign_post', d.x, d.y, { level, rng, text: b.name });
     level.rooms.push({ x: b.x, y: b.y, w: b.w, h: b.h, kind: 'building', name: b.name });
   });
 
   for (const d of town.decor || []) {
     const typeId = (town.decorTypes || DECOR_TYPES)[d.kind];
-    if (typeId && isWalkableLevel(level, d.x, d.y)) createObject(game, typeId, d.x, d.y, { level, text: d.text, light: d.kind === 'lamp' ? cfg.lampLight : undefined });
+    if (typeId && isWalkableLevel(level, d.x, d.y)) createObject(game, typeId, d.x, d.y, { level, rng, text: d.text, light: d.kind === 'lamp' ? cfg.lampLight : undefined });
   }
 
   const e = town.dungeonEntrance;
   setFlag(tiles, e.x, e.y, T.STAIRS_DOWN);
-  createObject(game, 'stairs_down', e.x, e.y, { level, state: 'down', linkDepth: 1 });
+  createObject(game, 'stairs_down', e.x, e.y, { level, rng, state: 'down', linkDepth: 1 });
   level.stairs = { up: null, down: { x: e.x, y: e.y }, town: null };
 
   const npcDefs = game.theme.npcs || [];
