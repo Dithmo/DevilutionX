@@ -125,7 +125,8 @@ export const LEVELS = {
     barrelRoom: [6, 10],
     denPack: [6, 8],
     tortureDecor: [2, 4],
-    tortureUniquePct: 25,
+    tortureUniquePct: 25,          // chance of a champion (hpMult) in a torture room
+    championHpMult: 2,
     bossFollowers: [4, 6],
     denFollowers: [3, 5],
     vaultChestLoot: [2, 3],

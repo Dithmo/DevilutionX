@@ -106,7 +106,7 @@ function placeDoors(game, level, tier, rng) {
 /** Spawn n monsters of a type around a point (pack seam first, then singles). @returns {Array} */
 function spawnGroup(game, level, typeId, x, y, n, opts = {}) {
   if (!typeId) return [];
-  if (deps.spawnPack) return deps.spawnPack(game, typeId, x, y, { size: n, ...opts }) || [];
+  if (deps.spawnPack) return deps.spawnPack(game, typeId, x, y, n, opts) || [];
   const out = [];
   for (let i = 0; i < n && deps.spawnMonster; i++) {
     const s = freeTileNear(level, x, y, NEAR, (tx, ty) => !level.monsters.some((m) => m.tx === tx && m.ty === ty));
@@ -245,34 +245,56 @@ function furnishThemedRoom(game, level, tier, room, rng) {
     case 'torture': {
       const decor = objectTypes(game).filter((t) => t.decor && !t.light && (t.tilesets === 'all' || t.tilesets.includes(level.tilesetId))).map((t) => t.id);
       placeObjects(game, level, rng, decor, rangeOf(rng, cfg.tortureDecor), inRoom);
-      if (rng.chance(cfg.tortureUniquePct) && deps.spawnMonster) deps.spawnMonster(game, rng.pick(tier.monsterPool), c.x, c.y, { unique: true });
+      if (rng.chance(cfg.tortureUniquePct) && deps.spawnMonster) deps.spawnMonster(game, rng.pick(tier.monsterPool), c.x, c.y, { hpMult: cfg.championHpMult, champion: true });
       break;
     }
     default: break;
   }
 }
 
-function questStampsFor(game, level, tier) {
-  const stamps = [...(game.hooks?.questStampsFor?.(game, level.depth) || [])];
-  const cfg = bal(game).populate;
-  if (cfg.autoBossRoom !== false && tier.bossId && level.depth === tier.depths[1] && !stamps.some((s) => s.uniqueId === tier.bossId)) {
-    stamps.push({ kind: 'bossRoom', uniqueId: tier.bossId, questId: null, auto: true });
-  }
-  return stamps;
+/** Normalise quest stamps from the quest layer: `{kind|stamp, questId, uniqueId|uniqueMonsterId, items|itemBaseId}`. */
+function questStampsFor(game, level) {
+  const raw = game.hooks?.questStampsFor?.(game, level.depth) || [];
+  return (Array.isArray(raw) ? raw : Object.values(raw)).map((s) => ({
+    ...s,
+    kind: s.kind || s.stamp || null,
+    uniqueId: s.uniqueId || s.uniqueMonsterId || null,
+    itemBaseId: s.itemBaseId || (s.items && s.items[0]) || null,
+  }));
 }
 
 function reserveStampRooms(game, level, stamps, rng) {
   const free = () => (level.rooms || []).filter((r) => !r.reserved && r.kind !== 'hall' && !roomHasStairs(level, r));
   for (const st of stamps) {
-    let pool = free();
+    if (!st.kind) continue;
+    const pool = free();
     if (!pool.length) continue;
     let room;
     if (st.kind === 'bossRoom') room = pool.reduce((a, b) => (b.w * b.h > a.w * a.h ? b : a));
     else if (st.kind === 'vault') room = pool.find((r) => level.objects.some((o) => o.kind === 'door' && ringHas(r, o.tx, o.ty))) || rng.pick(pool);
     else room = rng.pick(pool);
     reserveRoom(level, room, st.kind);
+    room.questId = st.questId || null;
     st.room = room;
   }
+}
+
+/** The unique a stamp names, unless the monster module already placed it. */
+function spawnStampUnique(game, level, st, x, y) {
+  const uid = st.uniqueId;
+  if (!uid || !deps.spawnMonster || level.monsters.some((m) => m.unique === uid || m.uniqueId === uid || m.typeId === uid)) return null;
+  const def = (game.theme?.uniqueMonsters || []).find((u) => u.id === uid) || { id: uid, name: uid, baseTypeId: uid };
+  return deps.spawnMonster(game, def.baseTypeId || uid, x, y, { unique: def, questId: st.questId, boss: st.kind === 'bossRoom' });
+}
+
+/** Quest item with no room stamp: tuck it into an existing chest, else drop it on the floor. */
+function placeLooseQuestItem(game, level, tier, st, rng) {
+  const item = deps.generateItem?.(game, { level: itemLevelFor(tier, level.depth), baseId: st.itemBaseId, source: 'quest' });
+  if (!item) return;
+  const chest = rng.pick(level.objects.filter((o) => o.kind === 'chest' && !o.questLoot));
+  if (chest) { chest.questLoot = item; return; }
+  const s = randomFreeTile(level, rng, { game });
+  if (s) placeGroundItem(game, level, item, s.x, s.y);
 }
 
 function ringHas(r, x, y) {
@@ -282,13 +304,13 @@ function ringHas(r, x, y) {
 function applyStamp(game, level, tier, st, rng) {
   const cfg = bal(game).populate;
   const room = st.room;
-  if (!room) return;
+  if (!room) { if (st.itemBaseId) placeLooseQuestItem(game, level, tier, st, rng); return; }
   const c = roomCentre(room);
   const ilvl = itemLevelFor(tier, level.depth);
-  const unique = st.uniqueId ? deps.spawnMonster?.(game, st.uniqueId, c.x, c.y, { unique: true, questId: st.questId, boss: st.kind === 'bossRoom' }) : null;
+  const unique = spawnStampUnique(game, level, st, c.x, c.y);
   if (st.kind === 'bossRoom' || st.kind === 'den') {
     const followers = rangeOf(rng, st.kind === 'bossRoom' ? cfg.bossFollowers : cfg.denFollowers);
-    spawnGroup(game, level, st.monsterTypeId || rng.pick(tier.monsterPool), c.x, c.y, followers, { leaderId: unique?.id });
+    if (unique) spawnGroup(game, level, st.monsterTypeId || rng.pick(tier.monsterPool), c.x, c.y, followers, { leaderId: unique.id });
     if (st.kind === 'bossRoom') placeObjects(game, level, rng, typesOfKind(game, level, tier, 'chest'), 1, { room, allowNoSpawn: true, game, create: { lootLevel: ilvl } });
   }
   if (st.kind === 'vault') {
@@ -316,7 +338,7 @@ function applyStamp(game, level, tier, st, rng) {
 export function populateLevel(game, level, tier, rng = game.rng.fork(`populate:${level.depth}`)) {
   placeStairs(game, level, tier);
   placeDoors(game, level, tier, rng);
-  const stamps = questStampsFor(game, level, tier);
+  const stamps = questStampsFor(game, level);
   level.questStamps = stamps;
   reserveStampRooms(game, level, stamps, rng);
   const themed = pickThemedRooms(game, level, tier, rng);

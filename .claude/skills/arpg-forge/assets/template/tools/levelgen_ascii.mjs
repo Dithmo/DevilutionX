@@ -27,6 +27,9 @@ const { tilesets } = await import(src('data/themes/default/tilesets.js'));
 const { tiers, town, maxDepth } = await import(src('data/themes/default/world.js'));
 const { objects, altarEffects, objectTexts } = await import(src('data/themes/default/objects.js'));
 const levelgen = await import(src('src/world/levelgen/index.js'));
+// Prefer the merged theme / balance when the other agents' modules import cleanly.
+const fullTheme = await import(src('data/themes/default/index.js')).then((m) => m.default).catch(() => null);
+const fullBalance = await import(src('data/balance/index.js')).then((m) => m.default).catch(() => null);
 
 const STUB_ITEM_LEVEL_SCALE = 1;
 const STUB_GOLD = [5, 40];
@@ -44,9 +47,9 @@ export function stubDeps() {
   };
   return {
     spawnMonster: (game, typeId, tx, ty, opts) => (levelgen.isWalkable(game.level, tx, ty) ? place(game, typeId, tx, ty, opts) : null),
-    spawnPack: (game, typeId, tx, ty, opts = {}) => {
+    spawnPack: (game, typeId, tx, ty, size = 1, opts = {}) => {
       const out = [];
-      for (let i = 0; i < (opts.size || 1); i++) {
+      for (let i = 0; i < size; i++) {
         const s = levelgen.freeTileNear(game.level, tx, ty, 3, () => true);
         if (s) out.push(place(game, typeId, s.x, s.y, opts));
       }
@@ -84,13 +87,15 @@ export async function makeStubGame(seed) {
   for (const k of Object.keys(stubs)) if (!real[k]) missing[k] = stubs[k];
   levelgen.setLevelDeps(missing);
   const bus = createBus();
+  const ownTheme = { tilesets, tiers, town, maxDepth, objects, altarEffects, objectTexts, npcs: [], palette: { text: '#eee', good: '#8f8', danger: '#f66', accent: '#fc8' }, flavor: { levelName: (d, t) => `${t} ${d}` } };
   const game = {
     seed, tick: 0, mode: 'dungeon', rng: createRng(seed), bus,
-    theme: { tilesets, tiers, town, maxDepth, objects, altarEffects, objectTexts, npcs: [], palette: { text: '#eee', good: '#8f8', danger: '#f66', accent: '#fc8' }, flavor: { levelName: (d, t) => `${t} ${d}` } },
-    balance: { levels: LEVELS }, strings: {}, level: null, town: null, levels: {}, hooks: {},
+    theme: fullTheme ? { ...fullTheme, objectTexts: fullTheme.objectTexts || objectTexts } : ownTheme,
+    balance: fullBalance ? { ...fullBalance, levels: fullBalance.levels || LEVELS } : { levels: LEVELS },
+    strings: {}, level: null, town: null, levels: {}, hooks: {}, quests: {},
     player: { id: 1, kind: 'player', tx: 0, ty: 0, ox: 0, oy: 0, hp: 50, hpMax: 50, mp: 20, mpMax: 20, base: { str: 10, mag: 10, dex: 10, vit: 10 }, resist: {}, gold: 0,
       equipment: {}, inventory: { items: {} }, belt: [], skills: { firebolt: 1 }, state: { buffs: [] }, path: null },
-    ui: { messages: [] }, nextId: 2, stats: {}, debug: {}, stubDeps: Object.keys(missing),
+    ui: { messages: [] }, nextId: 2, stats: {}, debug: {}, stubDeps: Object.keys(missing), fullTheme: !!fullTheme,
   };
   bus.on('message', (m) => game.ui.messages.push(m));
   return game;
