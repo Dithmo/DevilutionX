@@ -12,8 +12,7 @@
 import * as P from '../../data/balance/progression.js';
 import { setAnim, ANIM_FRAMES } from './anim.js';
 import { isWalkable, inBounds, idx } from '../world/tiles.js';
-import { statTotal, buffTotal, clamp, playerArmor, playerToHit, baseBlockChance, weaponDamage, statDamageMod } from './combat_rolls.js';
-import { MELEE_TOHIT_DEX_DIV, PLAYER_AC_DEX_DIV, UNARMED_DMG } from '../../data/balance/combat.js';
+import { statTotal, buffTotal, clamp, playerArmor, playerToHit, blockChance, playerDamageRange } from './combat_rolls.js';
 
 const STATS = ['str', 'mag', 'dex', 'vit'];
 const ELEMENTS = ['fire', 'cold', 'shock', 'arcane'];
@@ -93,25 +92,22 @@ export function createPlayerBase(game, classId, name) {
 }
 
 /**
- * Rebuild hpMax/mpMax/moveSpeed/lightRadius from class, level, stats, item
- * totals in p.derived and buffs. Current hp/mp grow with the max and are
- * clamped to it. Call after items/inventory.js recalcPlayer() fills derived.
+ * Rebuild hpMax/mpMax/moveSpeed/lightRadius from class, level, stats (base +
+ * item bonus + buffs), the item-only totals in p.derived and buffs. Current
+ * hp/mp grow with the max and are clamped to it. items/recalc.js calls this
+ * last after filling derived.
  * @param {object} p
  * @param {object} [cls] class def (defaults to p._cls)
  */
 export function recalcPlayerBase(target, cls) {
-  const p = target && target.player ? target.player : target; // items/recalc.js calls recalcPlayerBase(game)
+  const p = target && target.player ? target.player : target; // items/recalc.js may pass (game) or (p, cls)
   if (!cls) cls = p._cls;
   const d = p.derived || (p.derived = {});
   const lvl = p.level - 1;
-  // Base pools from BASE stats only; item/buff vit+mag and flat life/mana arrive via derived.lifeFromItems /
-  // manaFromItems (filled by items/recalc.js, which reads lifeBase/manaBase back from derived).
-  d.lifeBase = cls.startLife + cls.lifePerLevel * lvl + cls.lifePerVit * p.base.vit;
-  d.manaBase = cls.startMana + cls.manaPerLevel * lvl + cls.manaPerMag * p.base.mag;
-  const lifeFromItems = d.lifeFromItems !== undefined ? d.lifeFromItems : cls.lifePerVit * (p.bonus.vit || 0) + buffTotal(p, 'life');
-  const manaFromItems = d.manaFromItems !== undefined ? d.manaFromItems : cls.manaPerMag * (p.bonus.mag || 0) + buffTotal(p, 'mana');
-  const hpMax = clamp(Math.floor(d.lifeBase + lifeFromItems), 1, P.LIFE_MANA_CAP);
-  const mpMax = clamp(Math.floor(d.manaBase + manaFromItems), 0, P.LIFE_MANA_CAP);
+  const hpMax = clamp(Math.floor(cls.startLife + cls.lifePerLevel * lvl + cls.lifePerVit * statTotal(p, 'vit')
+    + (d.lifeFromItems || 0) + buffTotal(p, 'life')), 1, P.LIFE_MANA_CAP);
+  const mpMax = clamp(Math.floor(cls.startMana + cls.manaPerLevel * lvl + cls.manaPerMag * statTotal(p, 'mag')
+    + (d.manaFromItems || 0) + buffTotal(p, 'mana')), 0, P.LIFE_MANA_CAP);
   const dh = hpMax - (p.hpMax || hpMax);
   const dm = mpMax - (p.mpMax || mpMax);
   p.hpMax = hpMax;
@@ -119,33 +115,9 @@ export function recalcPlayerBase(target, cls) {
   p.hp = clamp(p.hp + Math.max(0, dh), 0, hpMax);
   p.mp = clamp(p.mp + Math.max(0, dm), 0, mpMax);
   for (const el of ELEMENTS) p.resist[el] = clamp(p.resist[el] || 0, 0, P.MAX_RESIST);
-  if (d.effects === undefined) baseDerived(p, cls); // item pipeline has not run: fill derived from stats alone
-  const walkMult = clamp(1 + (d.walkSpeed || 0) / P.WALK_SPEED_PCT_DIV, MIN_MOVE_MULT, P.MAX_MOVE_SPEED_MULT);
+  const walkMult = clamp(1 + ((d.walkSpeed || 0) + buffTotal(p, 'walkSpeed')) / P.WALK_SPEED_PCT_DIV, MIN_MOVE_MULT, P.MAX_MOVE_SPEED_MULT);
   p.moveSpeed = P.BASE_MOVE_SPEED * walkMult;
-  p.lightRadius = clamp(d.lightRadius !== undefined ? d.lightRadius : P.LIGHT_RADIUS_DEFAULT, P.LIGHT_RADIUS_MIN, P.LIGHT_RADIUS_MAX);
-}
-
-/**
- * Fill `p.derived` with the FULL-number shape items/recalc.js produces, from
- * stats and buffs only (no equipment). Keeps combat formulas identical
- * whether or not the item module is wired.
- */
-function baseDerived(p, cls) {
-  const d = p.derived;
-  const dex = statTotal(p, 'dex');
-  const off = p.equipment && p.equipment.offhand;
-  const hasShield = !!(off && off.type === 'shield');
-  d.toHit = cls.toHitBase + p.level + Math.floor(dex / MELEE_TOHIT_DEX_DIV) + buffTotal(p, 'toHit');
-  d.ac = Math.floor(dex / PLAYER_AC_DEX_DIV) + buffTotal(p, 'ac');
-  const mod = statDamageMod(p, cls);
-  const mult = 1 + buffTotal(p, 'dmgPct') / PCT;
-  d.dmgMin = Math.max(1, Math.floor(UNARMED_DMG.min * mult + mod));
-  d.dmgMax = Math.max(d.dmgMin, Math.floor(UNARMED_DMG.max * mult + mod));
-  d.dmgMod = mod;
-  d.blockChance = hasShield ? clamp(baseBlockChance(p, cls), 0, PCT) : 0;
-  d.hasShield = hasShield;
-  d.walkSpeed = buffTotal(p, 'walkSpeed');
-  d.lightRadius = P.LIGHT_RADIUS_DEFAULT + buffTotal(p, 'lightRadius');
+  p.lightRadius = clamp(P.LIGHT_RADIUS_DEFAULT + (d.lightRadius || 0) + buffTotal(p, 'lightRadius'), P.LIGHT_RADIUS_MIN, P.LIGHT_RADIUS_MAX);
 }
 
 /**
@@ -351,7 +323,7 @@ export function teleportPlayer(game, tx, ty) {
  */
 export function playerStatsSummary(p) {
   const cls = p._cls;
-  const dmg = weaponDamage(p);
+  const dmg = playerDamageRange(p, cls);
   const stats = {};
   for (const s of STATS) stats[s] = { base: p.base[s], total: statTotal(p, s), max: cls.max[s] };
   return {
@@ -359,9 +331,10 @@ export function playerStatsSummary(p) {
     xp: p.xp, xpNext: p.level >= P.MAX_LEVEL ? null : P.xpThreshold(p.level), statPoints: p.statPoints,
     stats, hp: p.hp, hpMax: p.hpMax, mp: p.mpMax ? p.mp : 0, mpMax: p.mpMax, gold: p.gold,
     ac: playerArmor(p),
-    toHit: playerToHit(p),
+    toHit: playerToHit(p, cls),
     dmgMin: dmg.min, dmgMax: dmg.max,
-    blockChance: (p.derived && p.derived.blockChance) || 0,
+    blockChance: blockChance(p, cls, p.level),
+    canBlock: !!((p.derived && p.derived.canBlock) || (p.equipment.offhand && p.equipment.offhand.type === 'shield')),
     resist: { ...p.resist }, buffs: p.state.buffs.map((b) => ({ id: b.id, ticksLeft: b.ticksLeft })),
     percentHp: p.hpMax ? Math.round((p.hp * PCT) / p.hpMax) : 0,
   };

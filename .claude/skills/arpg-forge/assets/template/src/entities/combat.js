@@ -25,6 +25,7 @@ import * as C from '../../data/balance/combat.js';
 export { resistMultiplier, elementColor } from './combat_rolls.js';
 
 const ADJACENT = 1;
+const PCT = 100;
 
 function classOf(game, p) {
   return p._cls || game.theme.classes.find((c) => c.id === p.classId);
@@ -53,8 +54,15 @@ export function rollPlayerHitsMonster(game, p, m, opts = {}) {
   const cls = classOf(game, p);
   const chance = R.playerHitChance(p, cls, m, opts);
   if (game.rng.rand(C.ROLL_D) >= chance) return { hit: false, dmg: 0, crit: false, chance };
-  const range = opts.dmg || R.weaponDamage(p); // derived damage already carries items + stat mod
+  // Weapon/skill range, then buff dmgPct and the stat mod (reference: non-archer arrows get half the mod).
+  const range = opts.dmg || R.weaponDamage(p);
   let dmg = game.rng.range(range.min, range.max);
+  dmg += Math.floor((dmg * R.buffTotal(p, 'dmgPct')) / PCT);
+  if (!opts.spell) {
+    let mod = R.statDamageMod(p, cls);
+    if (opts.ranged && cls.weaponPref !== 'ranged') mod = Math.floor(mod / 2);
+    dmg += mod;
+  }
   let crit = false;
   if (!opts.spell && cls.critOnLevel && game.rng.rand(C.ROLL_D) < p.level) {
     dmg *= C.CRIT_MULT;
@@ -78,7 +86,7 @@ export function rollMonsterHitsPlayer(game, m, p, opts = {}) {
   const chance = R.monsterHitChance(m, p, depth, opts);
   if (game.rng.rand(C.ROLL_D) >= chance) return { hit: false, blocked: false, dmg: 0, chance };
   if (R.canBlock(p)) {
-    const blk = R.blockChance(p, classOf(game, p), m.level || 0);
+    const blk = R.blockChance(p, classOf(game, p), m.level || 0, !!(opts.missile || opts.spell));
     if (game.rng.rand(C.ROLL_D) < blk) return { hit: true, blocked: true, dmg: 0, chance };
   }
   const range = opts.dmg || { min: m.dmgMin, max: m.dmgMax };

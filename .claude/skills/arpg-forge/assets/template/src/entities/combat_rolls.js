@@ -2,15 +2,12 @@
  * Pure combat formulas (no entity mutation, no imports beyond balance) so
  * they can be unit-tested and reused by missiles/skills/monsters.
  *
- * Conventions:
- *  - `p.derived` holds FULL player numbers (items/recalc.js semantics):
- *    `toHit` = classBase + level + Dex/2 (Dex with a bow) + items,
- *    `ac` = itemAC + Dex/5 + items, `dmgMin/dmgMax` = weapon + Str*level/100
- *    mod + items, `blockChance` = Dex + classBlock + 2*level + items (0
- *    without a shield), `stats` = current attributes. entities/player_stats
- *    recalcPlayerBase() fills the same shape from stats alone when the item
- *    pipeline has not run, so these helpers only READ derived and add the
- *    per-roll terms (monster AC, level gap, distance).
+ * CONVENTION (shared with items/recalc.js): `p.derived.toHit`, `.ac`,
+ * `.dmgMin/.dmgMax`, `.blockPct`, `.lifeFromItems/.manaFromItems`,
+ * `.lightRadius`, `.walkSpeed` are the ITEM contributions only. The stat /
+ * level / class terms (Dex/5 armour, level + Dex/2 to-hit, Str*level/100
+ * damage, class block base) are added HERE; buffs (p.state.buffs) are
+ * layered by statTotal()/buffTotal(). Nothing double-counts.
  *  - Monster `resist` uses 0 none / 1 resist / 2 immune; player `resist` is a
  *    percentage 0..75.
  */
@@ -18,6 +15,7 @@ import * as C from '../../data/balance/combat.js';
 import { STAT_CAP, MAX_RESIST } from '../../data/balance/progression.js';
 
 const HEAVY_MELEE_PREF = 'melee';
+const PCT = 100;
 
 /** Clamp helper. @returns {number} */
 export function clamp(v, lo, hi) {
@@ -40,27 +38,38 @@ export function buffTotal(p, stat) {
   return t;
 }
 
-/** Current attribute: derived.stats when the item pipeline ran, else base + bonus + buffs, clamped 0..750. @returns {number} */
+/** Current attribute = base + item bonus + buffs, clamped 0..750. @returns {number} */
 export function statTotal(p, stat) {
-  const d = p.derived;
-  if (d && d.stats && typeof d.stats[stat] === 'number') return d.stats[stat];
   const v = (p.base[stat] || 0) + ((p.bonus && p.bonus[stat]) || 0) + buffTotal(p, stat);
   return clamp(v, 0, STAT_CAP);
 }
 
-/** Player armor (derived.ac already holds itemAC + Dex/5). @returns {number} */
+/** Player armor = itemAC + Dex/5 + buff ac (reference GetArmor). @returns {number} */
 export function playerArmor(p) {
-  return Math.floor((p.derived && p.derived.ac) || 0);
+  return Math.floor(((p.derived && p.derived.ac) || 0) + statTotal(p, 'dex') / C.PLAYER_AC_DEX_DIV + buffTotal(p, 'ac'));
 }
 
-/** Player to-hit before the target's AC (derived.toHit already holds classBase + level + Dex term + items). @returns {number} */
-export function playerToHit(p) {
-  return Math.floor((p.derived && p.derived.toHit) || 0);
+/** Melee to-hit = classBase + level + Dex/2 + itemToHit + buffs (reference). @returns {number} */
+export function playerMeleeToHit(p, classDef) {
+  return Math.floor(classDef.toHitBase + p.level + statTotal(p, 'dex') / C.MELEE_TOHIT_DEX_DIV
+    + ((p.derived && p.derived.toHit) || 0) + buffTotal(p, 'toHit'));
+}
+
+/** Ranged to-hit = classBase + level + Dex + itemToHit + buffs (reference). @returns {number} */
+export function playerRangedToHit(p, classDef) {
+  return Math.floor(classDef.toHitBase + p.level + statTotal(p, 'dex')
+    + ((p.derived && p.derived.toHit) || 0) + buffTotal(p, 'toHit'));
+}
+
+/** To-hit for the equipped weapon kind (ranged when derived.ranged / a bow is held). @returns {number} */
+export function playerToHit(p, classDef) {
+  const bow = (p.derived && p.derived.ranged) || (p.equipment && p.equipment.weapon && p.equipment.weapon.type === 'bow');
+  return bow ? playerRangedToHit(p, classDef) : playerMeleeToHit(p, classDef);
 }
 
 /**
  * Chance (5..95) a player hit lands on a monster.
- * melee: toHit - AC; arrow: toHit - AC - dist^2/2; spell: Mag + classBase - 2*mLvl - dist (reference).
+ * melee: meleeToHit - AC; arrow: rangedToHit - AC - dist^2/2; spell: Mag + classBase - 2*mLvl - dist (reference).
  * @param {object} p player
  * @param {object} classDef theme PlayerClass
  * @param {object} m monster ({ ac, level })
@@ -73,9 +82,9 @@ export function playerHitChance(p, classDef, m, opts = {}) {
   if (opts.spell) {
     chance = statTotal(p, 'mag') + classDef.toHitBase - C.SPELL_TOHIT_LEVEL_MULT * (m.level || 0) - dist;
   } else if (opts.ranged) {
-    chance = playerToHit(p) - (m.ac || 0) - Math.floor((dist * dist) / C.ARROW_DIST_SQ_DIV);
+    chance = playerRangedToHit(p, classDef) - (m.ac || 0) - Math.floor((dist * dist) / C.ARROW_DIST_SQ_DIV);
   } else {
-    chance = playerToHit(p) - (m.ac || 0);
+    chance = playerMeleeToHit(p, classDef) - (m.ac || 0);
   }
   return clamp(Math.floor(chance), C.TO_HIT_MIN, C.TO_HIT_MAX);
 }
@@ -113,29 +122,21 @@ export function monsterHitChance(m, p, depth, opts = {}) {
 /** True when the player can block right now (shield equipped, standing or attacking). @returns {boolean} */
 export function canBlock(p) {
   const off = p.equipment && p.equipment.offhand;
-  const shield = !!(off && off.type === 'shield') || !!(p.derived && p.derived.hasShield);
+  const shield = !!(off && off.type === 'shield') || !!(p.derived && p.derived.canBlock);
   return shield && C.BLOCKING_ANIMS.includes(p.anim);
 }
 
 /**
- * Block chance 0..100 against an attacker of level mLvl. derived.blockChance
- * = Dex + classBlock + 2*cLvl + items; the reference subtracts 2*mLvl for
- * melee and, for missiles, drops the 2*cLvl term while subtracting
- * 2*(mLvl - cLvl) — algebraically the same number, so one formula serves both.
+ * Block chance 0..100: Dex + classBlock + 2*cLvl - 2*mLvl (+ blockPct items);
+ * vs missiles: Dex + classBlock - 2*(mLvl - cLvl) (reference).
  * @returns {number}
  */
-export function blockChance(p, classDef, mLvl) {
-  const base = (p.derived && p.derived.blockChance) || 0;
-  return clamp(Math.floor(base - C.BLOCK_LEVEL_MULT * mLvl), C.BLOCK_MIN, C.BLOCK_MAX);
-}
-
-/**
- * Intrinsic block number for a class/level/dex (used to fill derived when
- * the item pipeline has not run and for the character sheet).
- * @returns {number}
- */
-export function baseBlockChance(p, classDef) {
-  return statTotal(p, 'dex') + (classDef.blockBase || 0) + C.BLOCK_LEVEL_MULT * p.level;
+export function blockChance(p, classDef, mLvl, missile = false) {
+  const items = ((p.derived && p.derived.blockPct) || 0) + buffTotal(p, 'blockPct');
+  let chance = statTotal(p, 'dex') + (classDef.blockBase || 0) + items;
+  if (missile) chance -= C.BLOCK_LEVEL_MULT * (mLvl - p.level);
+  else chance += C.BLOCK_LEVEL_MULT * p.level - C.BLOCK_LEVEL_MULT * mLvl;
+  return clamp(Math.floor(chance), C.BLOCK_MIN, C.BLOCK_MAX);
 }
 
 /**
@@ -148,7 +149,7 @@ export function resistMultiplier(target, element) {
   if (target.kind === 'player') {
     if (element === 'phys' || !target.resist) return 1;
     const pct = clamp(target.resist[element] || 0, 0, MAX_RESIST);
-    return 1 - pct / 100;
+    return 1 - pct / PCT;
   }
   if (target.immune && typeof target.immune.has === 'function' && target.immune.has(element)) return C.IMMUNE_MULT;
   const r = target.resist ? target.resist[element] || 0 : 0;
@@ -165,11 +166,23 @@ export function statDamageMod(p, classDef) {
   return Math.floor((p.level * statTotal(p, 'str')) / C.MELEE_DMG_MOD_DIV);
 }
 
-/** Player damage range (derived.dmgMin/dmgMax already include weapon, items and the stat mod). @returns {{min:number,max:number}} */
+/** Weapon damage range from derived (items) or unarmed. @returns {{min:number,max:number}} */
 export function weaponDamage(p) {
   const d = p.derived || {};
   if (!(d.dmgMax > 0)) return { min: C.UNARMED_DMG.min, max: C.UNARMED_DMG.max };
   return { min: Math.max(0, d.dmgMin | 0), max: Math.max(d.dmgMin | 0, d.dmgMax | 0) };
+}
+
+/**
+ * Full player damage range for the sheet / arrows: weapon + buff dmgPct + stat mod.
+ * @returns {{min:number,max:number}}
+ */
+export function playerDamageRange(p, classDef) {
+  const w = weaponDamage(p);
+  const mult = 1 + buffTotal(p, 'dmgPct') / PCT;
+  const mod = statDamageMod(p, classDef);
+  const min = Math.floor(w.min * mult) + mod;
+  return { min, max: Math.max(min, Math.floor(w.max * mult) + mod) };
 }
 
 /** Weapon type vs monster flag multiplier (sword/mace vs undead/animal). @returns {number} */
@@ -185,11 +198,11 @@ export function weaponVsMonsterMult(p, m) {
 
 /** Monster stagger threshold: dmg >= mLvl + 3 (reference IsHardHit). @returns {boolean} */
 export function monsterStaggers(m, dmg) {
-  if (hasFlag(m, 'noHitRecover')) return false;
+  if (hasFlag(m, 'noHitRecover') || m.noHitRecover) return false;
   return dmg >= (m.level || 0) + C.MONSTER_STAGGER_LEVEL_BONUS;
 }
 
-/** Player stagger threshold: dmg >= cLvl (+cLvl/4 for the heavy melee class). @returns {boolean} */
+/** Player stagger threshold: dmg >= cLvl (+cLvl/4 for a class with heavyStagger). @returns {boolean} */
 export function playerStaggers(p, classDef, dmg) {
   let threshold = p.level;
   if (classDef && classDef.weaponPref === HEAVY_MELEE_PREF && classDef.heavyStagger) {
