@@ -1,0 +1,7 @@
+schema_version: "1.1"
+name: cyberpunk-complete-game
+expected_outcome: |
+  A playable browser ARPG in ./neon_game: index.html plus engine and a cyberpunk theme with
+  original names (classes, monsters, items, NPCs, quests, tiers all re-skinned), the theme
+  validator and headless smoke test pass, screenshots exist, and a README explains how to run it.
+  No names from the original reference game appear anywhere.

@@ -1,0 +1,7 @@
+schema_version: "1.1"
+name: pirate-four-classes-permadeath
+expected_outcome: |
+  A playable browser ARPG in ./saltbound themed as an age-of-sail pirate world with four
+  distinct classes and a working hardcore/permadeath option selectable when starting a new game
+  (death deletes the save / ends the run). Validator and smoke test pass; README and screenshots
+  present; no proper nouns from the reference game.
