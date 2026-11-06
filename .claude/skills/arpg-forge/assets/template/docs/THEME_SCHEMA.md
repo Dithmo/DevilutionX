@@ -11,7 +11,7 @@ Ranges are `[lo, hi]` inclusive. All text is plain strings (no markup).
 data/themes/<id>/
   index.js        merges and exports { meta, palette, tilesets, tiers, town, classes, monsters,
                   uniqueMonsters, items, skills, objects, altarEffects, npcs, quests, flavor, sfx, strings }
-  meta.js         { id, title, tagline, version }
+  meta.js         { id, title, tagline, version, actors?: '3d'|'2d' }   // actors: '2d' turns off the 3D actor renderer
   palette.js      { bg, panel, panelBorder, text, textDim, accent, hp, mp, xp, gold,
                     rarity: { normal, magic, rare, unique }, danger, good, light,
                     // optional HUD chrome + lighting (derived when absent):
@@ -84,7 +84,8 @@ ActorLook = {   // optional on classes, monsters, uniques and NPCs; defaults com
   helm?: 'full'|'visor'|'open'|'hood'|'horned'|'crest'|'bare', armor?: 'plate'|'light'|'cloth'|'none',
   cloak?: 'none'|'short'|'long'|'tattered', glow?: true|color,
   cloakColor?, metalColor?, skinColor?, accentColor?, underColor?: color,
-  legs?: 4|6|8 (crawler), wings?: 'membrane'|'rotor' (flier) }
+  legs?: 4|6|8 (crawler), wings?: 'membrane'|'rotor' (flier),
+  render?: '3d'|'2d' }   // '2d' draws this look with the 2D puppet even when 3D actors are on
 ```
 
 ## MonsterType

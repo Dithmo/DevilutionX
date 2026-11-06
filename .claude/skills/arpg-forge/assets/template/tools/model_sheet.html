@@ -10,9 +10,10 @@
 <script type="module">
 // Model sheet: every class / NPC / monster look in several directions and anims, every
 // object kind and state, item glyphs and missiles. ?theme=<theme id> &part=actors|monsters|objects|items &zoom=2
+// &actors=2d draws the 2D puppet instead of the 3D-baked actors (the default).
 import { setRenderScale } from '../src/render/draw_util.js';
 import activeTheme from '../data/active_theme.js';
-import { drawActor } from '../src/render/draw_actor.js';
+import { drawActor, preloadActors3d, setActors3dSync, actors3dState } from '../src/render/sprites.js';
 import { drawObject } from '../src/render/draw_objects.js';
 import { drawItemGlyph, drawMissile } from '../src/render/draw_items.js';
 
@@ -22,6 +23,8 @@ const part = q.get('part') || 'actors';
 const Z = Number(q.get('zoom') || 2);
 const theme = (await import(`../data/themes/${themeId}/index.js`)).default;
 setRenderScale(Z);
+setActors3dSync(true);
+await preloadActors3d({ mode: theme.meta && theme.meta.actors, timeoutMs: 20000 });
 const cv = document.getElementById('c');
 const W = 1400;
 const H = Number(q.get('h') || 1800);
@@ -73,6 +76,24 @@ if (part === 'actors') {
     }
     y += big ? 195 : 118;
     if (y > H - 100) break;
+  }
+} else if (part === 'specials') {
+  // every non-humanoid variant, plain and glowing (themes rarely use them all)
+  const V = [
+    { silhouette: 'crawler', legs: 4, bodyColor: '#6a4a3a', trimColor: '#c06a3a' },
+    { silhouette: 'crawler', legs: 6, bodyColor: '#3a4a5a', trimColor: '#7ac0e0', glow: true },
+    { silhouette: 'crawler', legs: 8, bodyColor: '#3a2a2a', trimColor: '#c04a3a' },
+    { silhouette: 'flier', wings: 'membrane', bodyColor: '#4a3a5a', trimColor: '#a07ac0' },
+    { silhouette: 'flier', wings: 'rotor', bodyColor: '#5a6068', trimColor: '#40c0ff', glow: true, metalColor: '#9aa0a8' },
+    { silhouette: 'blob', bodyColor: '#4a8a3a', trimColor: '#c0f070' },
+    { silhouette: 'blob', bodyColor: '#3a3a8a', trimColor: '#c070ff', glow: true },
+    { silhouette: 'turret', bodyColor: '#5a5a60', trimColor: '#ff8030', metalColor: '#8a8a90' },
+    { silhouette: 'turret', bodyColor: '#3a4a5a', trimColor: '#40e0ff', glow: true },
+  ];
+  for (const look of V) {
+    row(`${look.silhouette} ${look.legs || look.wings || ''}${look.glow ? ' glow' : ''}`,
+      [['stand', 0, 0], ['stand', 0, 2], ['stand', 0, 5], ['walk', 2, 1], ['walk', 6, 6], ['attack', 3, 7], ['attack', 5, 1], ['cast', 4, 1], ['hit', 0, 3], ['death', 9, 1]]
+        .map(([a, f, d]) => (x, yy) => drawActor(ctx, x, yy, look, { dir: d, anim: a, frame: f })), 110, 105, 80);
   }
 } else if (part === 'objects') {
   const STATES = { chest: ['closed', 'open'], door: ['closed', 'open'], breakable: ['intact', 'broken'], altar: ['idle', 'active'], lever: ['off', 'on'], stairs: ['down', 'up'] };
@@ -132,6 +153,7 @@ if (part === 'actors') {
     if (x > W - 120) { x = 80; y += 80; }
   }
 }
+window.__actors = actors3dState();
 window.__done = true;
 </script>
 </body>

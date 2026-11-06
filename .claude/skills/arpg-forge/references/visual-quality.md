@@ -1,8 +1,9 @@
 # Visual quality: from "flat procedural" to "painted dark ARPG"
 
 Use this guide when the user wants the game to look better ("make it look like a real
-game", or they send a reference image or paintover). Everything is still drawn in code with
-no image files, so it works for any setting. The engine template already ships the pipeline
+game", or they send a reference image or paintover). Everything is still drawn in code, so it
+works for any setting. The only image files are nine small CC0 material maps the 3D actors
+are tinted from. The engine template already ships the pipeline
 below, so most of the work is choosing theme colours and knobs that suit the setting.
 
 It came from a real iteration. Neon Undertow, built with this skill, was rated 1/10 by its
@@ -14,7 +15,7 @@ count. It was missing **light**, **material** and **atmosphere**. In order of im
 | 1 | Screen-space lighting pass (dark ambient, warm pools, additive glows) | Biggest single jump: flat → moody |
 | 2 | Material textures on floors/walls (slabs, bevels, grout, cracks, brick courses, AO) | Reads as stone/metal instead of coloured diamonds |
 | 3 | Level dressing (torches, banners, rubble, chains) that also emits light | Gives the light a source and the space a story |
-| 4 | Detailed actors (shaded volumes, armour pieces, weapons, outline + rim light, contact shadow) | Heroes and monsters read at a glance |
+| 4 | Detailed actors: 3D PBR models baked to sprites by default (§5b), with the shaded 2D puppet as the fallback (§5) | Heroes and monsters read at a glance |
 | 5 | Ornate HUD (metal frame, glass globes with swirling liquid, recessed slots) | Frames the screen like a finished product |
 | 6 | Atmosphere (fog, embers, ash motes, vignette) | Depth and motion even when nothing moves |
 | 7 | 2× backing store | Everything above stays sharp when the page scales up |
@@ -225,9 +226,92 @@ Every colour and noun comes from `look` in theme data. The code supplies neutral
 - Missiles are cached per (shape, colour, size, direction, phase), with shapes for bolts, orbs,
   shards, a flat ground ring, arrows and fireballs.
 
-**Model sheet.** `tools/model_sheet.html?theme=<id>&part=actors|monsters|objects|items` renders
-every class, NPC, monster, object state, glyph and missile on one page. Screenshot it after
-any look change; that is the fastest way to catch a broken silhouette.
+**Model sheet.** `tools/model_sheet.html?theme=<id>&part=actors|monsters|specials|objects|items`
+renders every class, NPC, monster, object state, glyph and missile on one page (`specials`
+shows the crawler, flier, blob and turret variants). Screenshot it after any look change; that
+is the fastest way to catch a broken silhouette. Add `&actors=2d` to see the puppet.
+
+## 5b. 3D actors, the default (src/render/actor3d/)
+
+Actors are built in code as real 3D models with PBR materials, rendered with three.js and
+baked to sprites, so the game still draws plain 2D images. The 2D puppet above stays. It is
+the **pose source**: the 3D rig reads the same skeleton (`humanoidSkeleton()` in
+draw_actor.js), so both renderers animate identically. It is also the **fallback**.
+
+**Files**
+
+| File | Role |
+|---|---|
+| `src/vendor/three.module.min.js` | three.js r160, vendored (MIT, `THREE_LICENSE`). Loaded only by dynamic import. |
+| `actor3d/index.js` | Front-end. Decides per draw: cached sprite, bake now, nearest baked pose, or puppet. Holds the sprite LRU and the idle warm-up queue. Imports no three.js. |
+| `actor3d/baker.js` | One WebGL renderer, an orthographic camera at the game's 30° iso pitch, key/rim/fill lights with a shadow map, and the finishing pass (downsample, contact shadow, ink, hit flash, projected glow anchors). |
+| `actor3d/humanoid.js` | Humanoid rig built from `look`: body, armour (plate, light, cloth), helms, cloaks, all weapons and offhands. Swing trails, muzzle flash and the cast orb render in an FX pass that is not inked. |
+| `actor3d/creature.js` | Crawler (4, 6 or 8 legs), flier (membrane or rotor), blob and turret. |
+| `actor3d/parts.js` | Geometry helpers: lathe, capsules, box UVs, tapered limbs. |
+| `actor3d/materials.js` | PBR materials tinted from look colours: plate, steel, gold, leather, cloth, skin, chitin, slime, paint and glow. Also sphere AO and the dungeon environment map. |
+| `actor3d/tex/*.jpg` | 512px detail, roughness and normal maps for metal, leather and fabric (ambientCG, CC0; see `CREDITS.txt`). Rebuild with `scripts/prep_textures.py`. |
+
+**How a frame is drawn**
+1. `drawActor` in `render/sprites.js` calls `drawActor3d` and falls back to the puppet if
+   that returns false.
+2. The sprite key is (look, dir, anim, pose, scale, size, RENDER_SCALE). A hit blits the
+   cached canvas.
+3. On a miss, it bakes inside the frame budget. Death frames and sync mode always bake.
+4. Over budget, it draws the nearest pose already baked for that look and direction, then that
+   look's stand pose. Only after those does it draw the puppet. A look with nothing baked yet
+   may spend up to `hardBudgetMs` to avoid a 2D pop.
+5. The first time a look appears it is queued for idle-time warm-up: stand in all 8
+   directions, then walk, attack, hit, death and cast, starting with the direction it faces.
+   Boot bakes the class looks (stand × 8) behind the loading bar. `warmActors3d(looks)`
+   queues more, for example a level's monster types on entry.
+
+**Knobs**
+
+| Knob | Default | Effect |
+|---|---|---|
+| `ACTORS3D.frameBudgetMs` | 8 | bake time allowed per rendered frame |
+| `ACTORS3D.hardBudgetMs` | 40 | ceiling for a look with nothing baked yet |
+| `ACTORS3D.idleSliceMs` | 10 | warm-up work per idle callback |
+| `ACTORS3D.cacheMB` | 256 | sprite memory cap (LRU); warm-up stops at 70% so it never evicts sprites in use |
+| `ACTORS3D.preloadTimeoutMs` | 6000 | if loading takes longer, the game stays 2D |
+| `QUALITY.ss` | 1.5 | supersampling on top of RENDER_SCALE (MSAA is on as well) |
+| `QUALITY.shadowMap` | 1536 | key light shadow resolution |
+| `QUALITY.exposure` | 1.05 | ACES tone-mapping exposure |
+| `QUALITY.ink` | 0.62 | outline radius, logical px |
+| `QUALITY.rigCache` | 24 | built rigs kept (LRU, disposed on evict) |
+
+**Switches**
+- Everything 2D: `?actors=2d` in the URL, or `meta.actors: '2d'` in the theme.
+- One look 2D: `look.render: '2d'`. Use it for a deliberately flat or retro creature.
+
+**Failure handling.** No WebGL2, a missing file, a timeout or an exception in a bake all set
+the state to `failed` and log one warning. From then on the puppet draws everything, and
+nothing else changes. `window.__game.actors()` reports the state, failure, sprite count, MB,
+queue length, hits, bakes, fallbacks and puppet draws. `actorsSync(true)` bakes every request
+synchronously, which screenshots and the model sheet need.
+
+**Performance**, measured with headless software GL (SwiftShader), the worst case:
+- boot about 2.4 s for three classes;
+- the first bakes are about 55 ms (shader compile), settling to about 14 ms per sprite;
+- about 0.18 MB per sprite at RENDER_SCALE 2;
+- no puppet fallbacks in live play.
+
+A real GPU is several times faster. If a target machine stutters, lower `frameBudgetMs` or
+`QUALITY.ss` before anything else.
+
+**Adding a look feature**
+1. Add the 2D part in draw_actor.js. The puppet is the contract and the fallback.
+2. Add the 3D part in humanoid.js or creature.js. Read pose data from the skeleton; don't
+   invent new timing.
+3. Check both: `model_sheet.html?part=actors` and `...&actors=2d`, side by side.
+
+New special bodies follow `buildCreature`: return `{root, pose(sk, anim, f, prev, yaw), glows,
+occ, shadowR}`. Tag effect meshes with `userData.fx = true` so they skip the ink.
+
+**Testing headless.** Launch Chromium with
+`--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist`.
+`tools/smoke_test.mjs` does this and checks that 3D actors are active. Run it with `--2d` to
+check the fallback.
 
 ## 6. HUD (src/render/ui/chrome.js, hud_frame.js)
 

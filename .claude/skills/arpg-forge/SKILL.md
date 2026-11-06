@@ -68,11 +68,21 @@ Rules of thumb while writing:
   the buttons (`start: 'Set Sail'`, `chooseClass: 'Sign the Articles'`). In testing, a run
   without this skill that put that care into its class screen came out looking better than a
   run with the skill that left the defaults.
-- The look is theme data too. The engine draws every sprite in code with a lighting pass,
-  painted materials, lit decor and an ornate HUD, so a theme mostly picks styles and colours:
-  `tileset.art` (stone vs concrete/metal, torches vs neon), actor `look` fields, and palette
-  metal and trim. `references/visual-quality.md` lists every knob with its default and the
-  recipes behind the look. Read it when the user wants it to look better, or sends a target image.
+- The look is theme data too. The engine draws everything in code: a lighting pass,
+  painted materials, lit decor and an ornate HUD. So a theme mostly picks styles and colours:
+  - `tileset.art`: stone vs concrete/metal, torches vs neon;
+  - the actor `look` fields;
+  - palette metal and trim.
+
+  Every actor (classes, monsters, uniques, NPCs, creatures) is a 3D model built from its
+  `look`, with PBR metal, leather and cloth. It is baked to sprites at runtime, so you write
+  no art and no 3D code; the same `look` fields drive it. The 2D puppet is the automatic
+  fallback when WebGL2 is unavailable. To force 2D, use `meta.actors: '2d'` for the whole
+  game, or `look.render: '2d'` for one look.
+
+  `references/visual-quality.md` lists every knob with its default and the recipes behind the
+  look (§5b covers the 3D actors). Read it when the user wants it to look better, or sends a
+  target image.
 - Keep every number inside the ranges the default theme uses unless `references/systems/`
   gives you a reason. The default numbers are the genre's proven curve.
 - Names are the setting; mechanics are the genre. Rename "mana" to "charge" freely; do not
@@ -97,7 +107,13 @@ Common extensions and where they live:
   deletes the save on death and hides "Return to town". Rename them for the setting through
   `strings.js` keys `difficulty_normal`, `difficulty_veteran`, `difficulty_elite`, `hardcore`,
   `permadeathNote`, `respawn`. Only touch code to add a mode the template lacks.
-- **Real art** → set `look.sprite` on any descriptor; `render/sprites.js` prefers sprites to procedural shapes.
+- **New actor part or body** → add it to the 2D puppet (`src/render/draw_actor.js`, the pose
+  source and fallback), then to the 3D rig (`src/render/actor3d/humanoid.js` or
+  `creature.js`). Check both on `tools/model_sheet.html`, with and without `&actors=2d`.
+  `references/visual-quality.md` §5b has the steps.
+- **Real art** → `drawActor` in `src/render/sprites.js` is the one place every actor is drawn
+  (3D bake, then puppet). Add an image-sheet branch there, keyed on a new look field such as
+  `look.sprite`, ahead of the 3D path.
 - **Multiplayer** → not in the template. `references/systems/05-data-save-net-modding.md §D` is the design (deterministic lockstep, command catalog); budget a separate milestone.
 
 For anything bigger, find the system in `references/systems/00-overview.md`, open its chunk
@@ -109,13 +125,17 @@ list, and implement the chunks in order. The chunk lists are dependency-sorted f
 2. `node tools/smoke_test.mjs` — boots the game in headless Chromium, walks every class from
    the hub down the stairs, fights, casts, loots, trades, visits every depth (checks monsters,
    reachable stairs, tier bosses), round-trips a town portal and a save, opens every panel, dies,
-   respawns, and checks permadeath. Screenshots go to `tools/out/`. It must pass (`--quick` while
+   respawns, and checks permadeath. It also checks that the 3D actors loaded; `--2d` runs the
+   puppet fallback instead. Screenshots go to `tools/out/`. It must pass (`--quick` while
    iterating, the full run before handing over). When a check fails, the message says what the
    player could not do; fix the theme or engine, not the test.
 3. **Look at the screenshots** (open the PNGs). Check: town readable, each tileset looks like
    its tier, HUD text legible, inventory items visible, a boss arena exists on the final depth.
-   Open `tools/model_sheet.html?theme=<id>&part=actors|monsters|objects|items` and screenshot
-   it: every class, monster, object and item on one page, so a broken look shows at a glance.
+   Open `tools/model_sheet.html?theme=<id>&part=actors|monsters|specials|objects|items` and
+   screenshot it: every class, monster, object and item on one page, so a broken look shows
+   at a glance. Headless Chromium needs `--use-gl=angle --use-angle=swiftshader
+   --enable-unsafe-swiftshader --ignore-gpu-blocklist` for the 3D actors; without WebGL2 they
+   silently fall back to 2D.
 4. Play it for two minutes yourself through Playwright if you have time: click to move, kill
    something, pick up loot, open the inventory, buy a potion, descend. Fix what feels wrong.
    `window.__game` (documented in `docs/CONTRACTS.md`) gives you `step`, `state`, `teleport`,

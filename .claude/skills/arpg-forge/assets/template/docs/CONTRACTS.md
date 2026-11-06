@@ -220,16 +220,29 @@ the loop and drive ticks with `step(n)`.
   spawn(typeId, dx, dy), killAll(), setGodMode(bool), xp(n),
   clickTile(tx, ty, button?), castAt(skillId, tx, ty), attack(monsterId), interact(objectId), talk(npcId),
   openPanel(name), closeAll(), save(slot?), load(slot?), menu(action), screenOf(x, y), reveal(), render(),
+  actors() -> { state: 'ready'|'failed'|'disabled'|'loading', failure, sprites, mb, queue,
+                hits, bakes, fallbacks, puppet, bakeMs, warmed },
+  actorsSync(on) /* bake every 3D actor request synchronously (screenshots) */,
   screenshotHints: [] }
 ```
 
-URL parameters: `?class=<id>` skips the title and starts that class, `?seed=`, `?difficulty=`, `?theme=`.
+URL parameters: `?class=<id>` skips the title and starts that class, `?seed=`, `?difficulty=`, `?theme=`,
+`?actors=2d` (draw actors with the 2D puppet instead of the 3D baker).
+
+## Actor rendering
+
+`render/sprites.js` `drawActor(ctx, sx, sy, look, {dir, frame, anim, light, scale})` is the only
+entry point. It draws a 3D-baked sprite (`render/actor3d/`) when that renderer is ready, otherwise
+the 2D puppet (`render/draw_actor.js`). Both renderers take the same arguments and the same
+pose tables. Boot awaits `preloadActors3d()` before the title screen. Game code never imports
+three.js or actor3d directly.
 
 ## Tests
 
 `tools/validate_theme.mjs` (content), `tools/unit_*.mjs` (systems, Node only), `tools/smoke_test.mjs`
 (Chromium: every class, every depth, combat, loot, vendor, portal, save/load, panels, death,
-permadeath; `--quick` for one class and one depth per tier). Screenshots land in `tools/out/`.
+permadeath, 3D actors active; `--quick` for one class and one depth per tier; `--2d` for the
+puppet fallback). Screenshots land in `tools/out/`.
 
 ## Events on `game.bus`
 

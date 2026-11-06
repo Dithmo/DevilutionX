@@ -45,20 +45,20 @@ import { addGlow } from './lighting.js';
 const TAU = Math.PI * 2;
 const PI = Math.PI;
 const GROUND_SQUASH = 0.5;
-const WALK_FRAMES = 8;
-const ATTACK_FRAMES = 8;
-const CAST_POSES = 4;
-const HIT_POSES = 2;
-const DEATH_POSES = 4;
+export const WALK_FRAMES = 8;
+export const ATTACK_FRAMES = 8;
+export const CAST_POSES = 4;
+export const HIT_POSES = 2;
+export const DEATH_POSES = 4;
 const DEATH_FRAMES = 10;
 const HIT_FRAMES = 4;
 const CAST_FRAMES = 8;
 
 /** Sprite boxes (logical px at size 1): w, h, anchor y (feet). */
-const BOX = { w: 100, h: 116, ay: 102 };
-const BOX_TALL = { w: 124, h: 150, ay: 134 };
-const BOX_DEATH = { w: 156, h: 84, ay: 58 };
-const BOX_LOW = { w: 96, h: 80, ay: 66 };
+export const BOX = { w: 100, h: 116, ay: 102 };
+export const BOX_TALL = { w: 124, h: 150, ay: 134 };
+export const BOX_DEATH = { w: 156, h: 84, ay: 58 };
+export const BOX_LOW = { w: 96, h: 80, ay: 66 };
 
 const DEFAULT_LOOK = { silhouette: 'bulky', bodyColor: '#a0a0a0', trimColor: '#404040' };
 const DEFAULT_METAL = '#b9bec8';
@@ -66,7 +66,7 @@ const DEFAULT_SKIN = '#b98d70';
 const OUTLINE = 'rgba(8,6,10,0.94)';
 
 /** Per-silhouette defaults for the optional look fields. */
-const DEFAULTS = {
+export const DEFAULTS = {
   bulky: { weapon: 'sword', offhand: 'none', helm: 'full', armor: 'plate', cloak: 'short' },
   lean: { weapon: 'dagger', offhand: 'none', helm: 'hood', armor: 'light', cloak: 'none' },
   robed: { weapon: 'staff', offhand: 'none', helm: 'hood', armor: 'cloth', cloak: 'none' },
@@ -78,7 +78,7 @@ const DEFAULTS = {
 };
 
 /** Body builds (px at size 1). z values are heights above the ground. */
-const BUILDS = {
+export const BUILDS = {
   bulky: { hipZ: 30, hipW: 4.9, thigh: 15.5, shin: 15, legR: [4.4, 3.3], waistZ: 35, shZ: 52, sh: 11, chest: [10, 6.8], waist: [7.6, 5.6], head: 5.8, arm: [12.5, 11.5], armR: [3.8, 3.1], pauld: 7.2, tilt: 0.02 },
   lean: { hipZ: 31, hipW: 3.8, thigh: 16, shin: 15.5, legR: [3.2, 2.4], waistZ: 36, shZ: 53, sh: 8.4, chest: [7.4, 5.0], waist: [5.6, 4.2], head: 5.3, arm: [12.5, 12], armR: [2.8, 2.3], pauld: 4.4, tilt: 0.04 },
   robed: { hipZ: 30, hipW: 3.8, thigh: 15.5, shin: 15, legR: [3.0, 2.4], waistZ: 35, shZ: 52, sh: 8.6, chest: [7.8, 5.4], waist: [6.2, 4.8], head: 5.4, arm: [12.5, 12], armR: [3.2, 2.9], pauld: 5.2, tilt: 0.05 },
@@ -86,20 +86,20 @@ const BUILDS = {
 };
 
 const ONE_HAND = new Set(['sword', 'katana', 'axe', 'mace', 'dagger', 'blade', 'wand', 'pistol', 'claws', 'none']);
-const HEAVY = new Set(['greatsword', 'hammer']);
-const RANGED = new Set(['pistol', 'gun', 'rifle', 'bow']);
+export const HEAVY = new Set(['greatsword', 'hammer']);
+export const RANGED = new Set(['pistol', 'gun', 'rifle', 'bow']);
 const WEAPON_ALIAS = { gun: 'rifle' };
 
 // Legs: thigh + shin just longer than hip height above the ankle, so a standing leg is nearly straight.
 for (const b of Object.values(BUILDS)) { b.thigh = (b.hipZ - 2.2) * 0.515; b.shin = (b.hipZ - 2.2) * 0.5; }
 
 /** Non-humanoids are authored small; this brings them up to the heroes' scale. */
-const SPECIAL_SCALE = { crawler: 1.3, flier: 1.4, blob: 1.45, turret: 1.4 };
+export const SPECIAL_SCALE = { crawler: 1.3, flier: 1.4, blob: 1.45, turret: 1.4 };
 
 const resolvedLooks = new WeakMap();
 let pendingGlows = null;
 
-function frameKey(anim, frame) {
+export function frameKey(anim, frame) {
   const f = Math.max(0, frame | 0);
   if (anim === 'walk') return f % WALK_FRAMES;
   if (anim === 'attack') return f % ATTACK_FRAMES;
@@ -110,7 +110,7 @@ function frameKey(anim, frame) {
 }
 
 /** Fill in defaults and derived colours once per look object. */
-function resolveLook(look) {
+export function resolveLook(look) {
   let r = resolvedLooks.get(look);
   if (r) return r;
   const sil = DEFAULTS[look.silhouette] ? look.silhouette : 'bulky';
@@ -177,7 +177,7 @@ export function drawActor(ctx, sx, sy, look = DEFAULT_LOOK, opts = {}) {
 
 /* ------------------------------------------------------------------ projection */
 
-function makeView(dir) {
+export function makeView(dir) {
   const v = dirToScreen(dir);
   let gx = v.x;
   let gy = v.y / GROUND_SQUASH;
@@ -204,7 +204,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const lerp3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 
 /** Two-bone IK: joint position for root A reaching target T with bone lengths l1, l2. */
-function ik(A, T, l1, l2, pole) {
+export function ik(A, T, l1, l2, pole) {
   let dv = sub(T, A);
   let d = len3(dv);
   const maxD = (l1 + l2) * 0.999;
@@ -219,7 +219,7 @@ function ik(A, T, l1, l2, pole) {
 }
 
 /** Weapon direction from pitch (0 down, PI/2 forward, PI up) and yaw (+ toward the right). */
-function wdir(p, y) {
+export function wdir(p, y) {
   return [Math.sin(y) * Math.sin(p), Math.cos(y) * Math.sin(p), -Math.cos(p)];
 }
 
@@ -267,7 +267,7 @@ function paintActor(c, L, dir, anim, f, size) {
 
 /* ------------------------------------------------------------------ humanoid poses */
 
-function stanceFor(L) {
+export function stanceFor(L) {
   if (L.weapon === 'bow') return 'bow';
   if (RANGED.has(L.weapon)) return L.weapon === 'pistol' ? 'pistol' : 'rifle';
   if (L.weapon === 'staff' || L.weapon === 'spear') return 'pole';
@@ -281,7 +281,7 @@ function stanceFor(L) {
  * space, relative to the waist), wp:[pitch,yaw], two (offhand grips weapon), flash, smear,
  * muzzle, cast }.
  */
-function humanoidPose(L, anim, f) {
+export function humanoidPose(L, anim, f) {
   const B = BUILDS[L.sil];
   const st = stanceFor(L);
   const sh = B.sh;
@@ -433,6 +433,52 @@ function attackPose(P, L, st, f, B) {
   }
 }
 
+/**
+ * The posed skeleton in actor space (s right, f forward, z up), shared by the 3D renderer so
+ * both renderers animate identically: legs {hip, knee, ankle}, arms {shoulder, elbow, hand},
+ * neck, head centre, weapon direction wd, and U() mapping upper-body space to actor space.
+ */
+export function humanoidSkeleton(L, anim, f) {
+  const B = BUILDS[L.sil];
+  const P = humanoidPose(L, anim, f);
+  const tw = P.twist;
+  const tl = P.tilt;
+  const rootF = P.rootF;
+  const pelvisZ = B.hipZ - 0.6 + P.rootZ - P.crouch;
+  const waistZ = B.waistZ - (B.hipZ - pelvisZ);
+  const cosT = Math.cos(tw); const sinT = Math.sin(tw);
+  const cosL = Math.cos(tl); const sinL = Math.sin(tl);
+  const U = (p) => {
+    const s1 = p[0] * cosT - p[1] * sinT;
+    const f1 = p[0] * sinT + p[1] * cosT;
+    return [s1, f1 + p[2] * sinL + rootF, waistZ + p[2] * cosL];
+  };
+  const up = B.shZ - B.waistZ;
+  const legs = [];
+  for (let i = 0; i < 2; i++) {
+    const side = i === 0 ? 1 : -1;
+    const hip = [side * B.hipW, rootF * 0.6, pelvisZ];
+    const ft = P.feet[i];
+    const ankle = [ft[0], ft[1] + rootF * 0.5, ft[2] + 2.2];
+    const knee = ik(hip, ankle, B.thigh, B.shin, [side * 0.12, 1, 0]);
+    legs.push({ side, hip, knee, ankle, lift: ft[2] });
+  }
+  const wd = U2dir(U, wdir(P.wp[0], P.wp[1]));
+  const arms = [];
+  for (let i = 0; i < 2; i++) {
+    const side = i === 0 ? 1 : -1;
+    const shoulder = U([side * B.sh, 0, up - 1.5]);
+    let target;
+    if (i === 1 && P.two) target = add(U(P.hands[0]), mul(wd, L.weapon === 'rifle' ? 9 : -5.5));
+    else target = U(P.hands[i]);
+    const elbow = ik(shoulder, target, B.arm[0], B.arm[1], [side * 0.8, -0.7, -0.4]);
+    arms.push({ side, shoulder, elbow, hand: target });
+  }
+  const neck = U([0, 0.6, up + 2.5]);
+  const headC = U([0, 0.9, up + 2.5 + B.head * 0.95]);
+  return { B, P, U, legs, arms, neck, headC, wd, pelvisZ, waistZ, up, rootF, tw, tl };
+}
+
 /* ------------------------------------------------------------------ humanoid build */
 
 function buildHumanoid(X, P) {
@@ -570,10 +616,10 @@ function buildHumanoid(X, P) {
   }
 }
 
-const BLADE_GLOW = new Set(['sword', 'katana', 'greatsword', 'dagger', 'blade', 'staff', 'wand', 'spear']);
+export const BLADE_GLOW = new Set(['sword', 'katana', 'greatsword', 'dagger', 'blade', 'staff', 'wand', 'spear']);
 
 /** Rotate a direction from upper-body space into actor space (no translation). */
-function U2dir(U, d) {
+export function U2dir(U, d) {
   const o = U([0, 0, 0]);
   return norm(sub(U(d), o));
 }
@@ -1173,7 +1219,7 @@ function U2dirLocal(U, d) {
 
 /* ------------------------------------------------------------------ weapons */
 
-function weaponLen(w) {
+export function weaponLen(w) {
   return {
     sword: 24, katana: 25, greatsword: 30, axe: 20, hammer: 22, mace: 16, spear: 32, staff: 30, wand: 9,
     dagger: 11, blade: 13, claws: 6, pistol: 8, rifle: 17, bow: 14,

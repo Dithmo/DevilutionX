@@ -17,6 +17,7 @@ import { createRng } from './core/rng.js';
 import { createCamera, renderPos } from './render/camera.js';
 import { renderWorld, getTileAtScreen, getEntityAtScreen } from './render/iso.js';
 import { setRenderScale } from './render/draw_util.js';
+import { preloadActors3d, warmActors3d, actors3dState, setActors3dSync } from './render/sprites.js';
 import { renderUi, updateUi, uiHandleClick, uiHandleKey, uiHitTest, openPanel, closeAll, openVendor, addMessage } from './render/ui.js';
 import { computeFov, MAX_LIGHT } from './world/fov.js';
 import { generateLevel, levelDepsReady } from './world/levelgen/index.js';
@@ -530,6 +531,8 @@ function makeDebugApi(game, loop) {
     loop,
     step(n = 1) { for (let i = 0; i < n; i++) update(game); },
     state() { return stateSummary(game); },
+    actors() { return actors3dState(); },
+    actorsSync(on = true) { setActors3dSync(on); },
     classes() { return game.theme.classes.map((c) => c.id); },
     newGame(classId, seed = 1, opts = {}) { newGame(game, classId || game.theme.classes[0].id, 'Tester', seed, opts); return stateSummary(game); },
     teleport(depth) { changeLevel(game, depth, false); return stateSummary(game); },
@@ -602,6 +605,12 @@ async function boot() {
     game.ui.loading = { title: 'Failed to load theme', text: String(err && err.message), progress: 0 };
     return;
   }
+  // 3D actors (default): load the baker and bake the class cards before the menu shows.
+  // Any failure keeps the 2D puppet; ?actors=2d or theme meta.actors = '2d' skips it.
+  game.ui.loading = { title: game.theme.meta.title, text: game.strings.loading || 'Loading', progress: 0.8 };
+  await preloadActors3d({ mode: game.theme.meta.actors, looks: (game.theme.classes || []).map((c) => c.look).filter(Boolean) });
+  warmActors3d((game.theme.npcs || []).map((n) => n.look).filter(Boolean));
+  game.ui.loading = null;
   const loading = document.getElementById(LOADING_ID);
   if (loading) loading.remove();
   const quick = urlParam('class');

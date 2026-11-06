@@ -1,0 +1,9 @@
+PBR detail, roughness and normal maps for the 3D actor baker.
+
+Derived from ambientCG materials (https://ambientcg.com), licensed CC0 1.0 (public domain):
+  Metal038, Metal054A  -> metal_*.jpg   (plus a procedural hammered-dent normal)
+  Leather037           -> leather_*.jpg
+  Fabric031            -> fabric_*.jpg
+
+Rebuilt with scripts/prep_textures.py (in the arpg-forge skill) from the 1K-JPG downloads.
+Albedo is stored as grayscale detail (mean ~0.8) and tinted by each look's colours at runtime.

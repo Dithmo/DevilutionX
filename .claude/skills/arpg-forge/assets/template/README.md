@@ -55,3 +55,12 @@ to make death final (the save is deleted and the hero cannot return).
   `playwright` package) and writes screenshots to `tools/out/`. `--quick` runs a shorter pass.
 - `window.__game` in the browser console is a debug API (`teleport(depth)`, `give('gold', 500)`,
   `setGodMode(true)`, …).
+- Characters and monsters are 3D models built in code and baked to sprites with WebGL2
+  (`src/render/actor3d/`). Browsers without WebGL2 get the 2D versions automatically;
+  `?actors=2d` forces them.
+
+## Credits
+
+- [three.js](https://threejs.org) r160, MIT licence (`src/vendor/THREE_LICENSE`).
+- Material maps derived from [ambientCG](https://ambientcg.com) textures, CC0
+  (`src/render/actor3d/tex/CREDITS.txt`).

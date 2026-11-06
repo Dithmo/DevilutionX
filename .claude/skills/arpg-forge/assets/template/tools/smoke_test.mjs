@@ -5,6 +5,7 @@
  *
  *   node tools/smoke_test.mjs            full run (every class, every depth)
  *   node tools/smoke_test.mjs --quick    first class only, one depth per tier
+ *   node tools/smoke_test.mjs --2d       force the 2D puppet actors (?actors=2d)
  *
  * Checks: boot without page errors · menu renders · every class starts in town
  * with NPCs · talking opens dialogue, trading opens the vendor · every depth
@@ -27,6 +28,9 @@ const { chromium } = require('playwright');
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'tools', 'out');
 const QUICK = process.argv.includes('--quick');
+const FORCE_2D = process.argv.includes('--2d');
+// Software WebGL so the 3D actor baker runs headless (no GPU needed).
+const GL_ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const VIEW = { width: 960, height: 540 };
 const SEED = 4242;
 const MAX_WALK_TICKS = 4000;
@@ -65,17 +69,17 @@ async function main() {
   const port = await freePort();
   const server = spawn('python3', [path.join(ROOT, 'serve.py'), String(port)], { cwd: ROOT, stdio: 'ignore' });
   const base = `http://127.0.0.1:${port}`;
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ args: GL_ARGS });
   const errors = [];
   try {
     await waitForServer(`${base}/index.html`);
     const page = await browser.newPage({ viewport: VIEW, deviceScaleFactor: 1 });
     page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
     page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
-    await page.goto(`${base}/index.html`);
-    await page.waitForFunction(() => window.__game && window.__game.ready, null, { timeout: 20000 });
+    await page.goto(`${base}/index.html${FORCE_2D ? '?actors=2d' : ''}`);
+    await page.waitForFunction(() => window.__game && window.__game.ready, null, { timeout: 60000 });
     const shot = async (name) => {
-      await page.evaluate(() => window.__game.render());
+      await page.evaluate(() => { window.__game.actorsSync(true); window.__game.render(); window.__game.actorsSync(false); });
       await page.locator('#game').screenshot({ path: path.join(OUT_DIR, `smoke-${name}.png`) });
     };
     // Pause the real-time loop: the test drives ticks itself.
@@ -88,6 +92,9 @@ async function main() {
     });
     check(info.classes.length >= 3, `theme '${info.title}' has ${info.classes.length} classes`);
     check(info.maxDepth >= 4, `maxDepth ${info.maxDepth}`);
+    const actors = await page.evaluate(() => window.__game.actors());
+    if (FORCE_2D) check(actors.state === 'disabled', '2D puppet actors forced', actors.state);
+    else check(actors.state === 'ready', `3D actors active (${actors.sprites} sprites baked at boot)`, actors.failure || actors.state);
     await shot('menu');
 
     const classes = QUICK ? info.classes.slice(0, 1) : info.classes;
