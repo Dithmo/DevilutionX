@@ -75,6 +75,162 @@ never touch the simulation.
 - **Vignette**: a baked radial gradient (clear centre, 0.78 black in the corners) that pulls
   the eye to the hero.
 
-## 4–6. Environment, actors, HUD
+## 4. Environment (src/render/draw_tiles.js, src/render/draw_decor.js)
 
-See the sections below. Each records the recipe that produced the upgraded look.
+The engine code holds no colours or setting nouns. Everything comes from `tileset.art`
+(dungeons) or `town.art` (town), every knob has a default, and with no knobs at all you get
+stone and torches. The same code draws grimy concrete, plate and grate floors with metal panel
+walls and neon tubes when the theme asks for them.
+
+**Two drawing spaces make the work 2D:**
+- **Tile space.** (a,b) ∈ [-0.5,0.5]² maps to the screen as `((a-b)*32, (a+b)*16)`. All floor
+  geometry (slabs, cracks, decals) is drawn in (a,b), so it stays correct in iso.
+- **Face space.** `faceTransform(c, face)` puts the context on a flat 32×WALL_H rectangle:
+  - left face: `transform(1,0.5,0,-1,-32,0)`;
+  - right face: `transform(1,-0.5,0,-1,0,16)`.
+
+  Bricks, panels, niches, torches and banners are then ordinary 2D drawing.
+
+**The bevel is the key technique.** `bevel(c, pts, w, hi, lo)` strokes each polygon edge in a
+highlight or a shadow, chosen by the sign of `dot(outwardNormal, LIGHT_DIR)`, with the light
+from the top left. The stroke is 2× wide inside a clip, so only the inner half shows. Use it
+for slabs, bricks, panels, rubble and wall caps. This one function gives the chiselled look.
+Faces are shaded by side: top ×1.0, left ×0.80, right ×0.56.
+
+**Floors**
+- Fill the tile with grout first: floor × `groutDark` (0.22).
+- Split the tile into a jittered n×n grid of slabs. Merge some neighbours into big slabs,
+  inset each one and chip its corners.
+- Give each slab its own tone, a bevel and soft grime blotches. Draw blotches as radial
+  gradients under `scale(1,0.6)`; clipped ellipses give hard edges.
+- A slab gets a crack with chance `cracks`. A crack is a random walk with branches: a dark
+  stroke with a 1px lit lip.
+
+**Walls**
+- Walls are **64 tall** (up from 48). Height is what makes them read as architecture.
+- Brick courses are offset by half a brick, with `BRICK_L` 16 on a 32-long face. A brick that
+  crosses the tile seam takes its tone from the course hash only, so the halves match.
+- The wall top gets a rim band on exposed edges only, chosen from the 4-neighbour wall mask.
+  Long runs then read as one continuous coping, not a grid of boxes.
+- Shading at the base:
+  - each face gets a dark gradient over its bottom 24px;
+  - floor tiles at the foot of a wall get a cached shadow wedge.
+- Face features (niche, pilaster, runes, damaged, vent, screen) are picked per face by hash.
+  Pilasters repeat on every Nth face so the rhythm is regular.
+- A door in a straight run gets a lintel from 48 to 64 above the door sprite.
+
+**Decor** (`getDecor(level)`, built once per level and kept in a WeakMap)
+- Placement uses `hash2(x,y,seed)` only, never the game RNG, so it is purely visual.
+- Keep-out zones: radius 2 around stairs; radius 1 around doors, objects, NPCs and spawn
+  points.
+- **Lamps** (torch or neon) go on front-facing plain faces at least `lamp.spacing` tiles apart.
+  Each one registers:
+  - `addLight`;
+  - two glows;
+  - a floor pool;
+  - embers (torches only).
+
+  At most 14 lights are registered per screen, only on explored tiles. **This is what puts
+  warm pools of light in the room.**
+- Also placed: wall mounts (banners with swallowtail cloth and tatters, chains, cables, signs),
+  rubble at wall bases (forced in front of damaged faces), free-standing poles, and floor
+  decals from the tileset's `decor` list (puddle, grate, bones, debris).
+
+**Theme knobs** (all optional)
+
+| Knob | Values or default |
+|---|---|
+| `floorStyle` / `floorStyles` | flagstone, cobble, concrete, plate, grate, water |
+| `wallStyle` / `wallStyles` | masonry, rough, panel |
+| `groutDark` | 0.22 |
+| `cracks` | 0.16 |
+| `grime` | 0.6 |
+| `stain` | none |
+| `rust` | brown |
+| `hazard` | yellow |
+| `metal` | grey |
+| `runeColor` / `runes` | accent / 0.22 |
+| `pilasterEvery` | 4 |
+| `features` | per-style weights for niche, runes, damaged, vent, screen |
+| `lamp` | `{kind:'torch'\|'neon', color, colors, chance:.3, spacing:4, radius:135, intensity:1}` |
+| `wallDecor` | `['banner','chain']` (others: cable, sign) |
+| `wallDecorChance` | 0.14 |
+| `banner` | `[door, accent]` |
+| `bone` / `wood` | bone / wood colours |
+| `rubble` / `stones` / `poles` / `decalChance` | 0.12 / 0.035 / 0.02 / 0.03 |
+
+**Known issue:** taller walls hide more objects behind them. Fade walls that cover chests and
+items near the player, not just the player.
+
+## 5. Actors (src/render/draw_actor.js, draw_volume.js)
+
+_(Filled in from the actors pass.)_
+
+## 6. HUD (src/render/ui/chrome.js, hud_frame.js)
+
+The same code gives dark iron with gold trim (default theme) and gunmetal with neon tubes
+(neon theme). Every palette key is optional and is derived from `panel` and `panelBorder` when
+it is missing:
+
+| Key | Purpose |
+|---|---|
+| `metal`, `metalLight`, `metalDark`, `metalEdge` | Frame metal and its shades |
+| `trim` | Inlays, filigree and active rims |
+| `trimGlow` | `0` = metallic trim; `>0` = glowing neon tube |
+| `recess` | Slot wells and grooves |
+| `lifeColor` / `manaColor` | Globe liquid |
+| `ornament` | `'organic'` = curved horns; `'angular'` = faceted blades and circuit-trace filigree |
+
+**Metal recipe**, applied to any outline built by an *adder* function (one that appends a path
+without calling `beginPath`, so it can be filled, clipped and stroked):
+1. Drop shadow: shadowBlur 5, offset y 2, black at 0.75.
+2. Vertical key-light gradient: lighter → base → base × 0.42.
+3. Clipped grain: hashed specks and faint brushed strokes.
+4. One faint diagonal sheen band.
+5. Inner bevel by the evenodd trick: clip to the shape, then fill a big rect plus the shape
+   with `evenodd` and an offset shadow. A light colour offset down gives a lit top edge; black
+   offset up gives a shaded bottom edge.
+6. 1px dark outline.
+
+**Related recipes:**
+- **Recess** (slots, grooves): dark gradient, a deep inner shadow from the top left, and a 1px
+  light lip at the bottom. This makes slots look cut into the metal.
+- **Engrave**: a black stroke, then the same path 0.8px lower in white at 0.14.
+- **Neon trim**: a stroke with `shadowBlur` in the trim colour, drawn twice, plus a white-hot
+  core.
+
+**Glass globes.** Four sprites are cached per colour:
+- back: dark glass;
+- liquid: a radial gradient with an off-centre core;
+- two **swirl** layers: spiral arms stroked in segments whose width swells with `sin(πu)`,
+  then blurred;
+- glass overlay: edge vignette, caustic arc, dome reflection, specular spot, fresnel arc and a
+  black lip.
+
+Each frame:
+- clip under a double-sine liquid surface;
+- blit the liquid;
+- blit the two swirls **rotated in opposite directions** (cheap, and it churns convincingly);
+- draw a few bubbles;
+- draw a meniscus line along the wave.
+
+**Ornaments.** `profilePath(pts, organic)` takes one list of `[x,y,sharp]` points. Organic mode
+curves through the edge midpoints and gives horns; angular mode gives blades. The globe socket
+is built for the life side and mirrored with `scale(-1,1)`. The stack, back to front:
+1. a crescent horn;
+2. three talons;
+3. a riveted ring;
+4. a jewel.
+
+**Silhouette.** The bar body is only 66px tall. Tabs, the level medallion, horns and claws rise
+above it to about y=390, and the world shows through between them.
+
+**Caching.** HUD sprites use their own cache (`chromeSprite`), so world-sprite churn never
+rebuilds them. One full-width sprite holds every static part of the HUD. The medallion is
+separate because it sits over the XP fill.
+
+**Gotchas**
+- `shadowBlur`, `shadowOffset*` and `filter: blur()` ignore the canvas transform. Multiply them
+  by `RENDER_SCALE` when drawing at 2×.
+- Text over trim needs a dark backing pill.
+- Keep the zone name in a screen corner, clear of the ornaments.
