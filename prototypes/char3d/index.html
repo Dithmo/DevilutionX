@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warden 3D Prototype</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/environments/RoomEnvironment.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js"
+} }
+</script>
+<style>
+  :root {
+    --bg: #0d0c10; --panel: #17151c; --line: #2c2833; --text: #e8e2d6; --muted: #9a9284;
+    --accent: #d7a65a; --accent2: #7fb2ff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg: #0d0c10; --panel: #17151c; --line: #2c2833; --text: #e8e2d6; --muted: #9a9284; }
+  }
+  :root[data-theme="dark"] { --bg: #0d0c10; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font: 600 22px/1.2 Georgia, "Times New Roman", serif; letter-spacing: .02em; margin: 0 0 4px; }
+  h2 { font: 600 15px/1.2 system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 28px 0 10px; }
+  p.lede { color: var(--muted); margin: 0 0 16px; max-width: 760px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { background: transparent; color: var(--muted); border: 0; padding: 6px 11px; font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: #2a2431; color: var(--text); }
+  .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+  .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-width: 0; }
+  .card h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+  .card h3 span { color: var(--muted); font-weight: 400; }
+  .card canvas { display: block; width: 100%; height: auto; border-radius: 4px; }
+  .grid { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .grid table { border-collapse: collapse; }
+  .grid th { color: var(--muted); font-weight: 500; font-size: 12px; padding: 2px 4px 6px; text-align: center; }
+  .grid th.row { text-align: right; padding-right: 10px; white-space: nowrap; }
+  .grid td { padding: 0 2px; }
+  .grid canvas { display: block; }
+  .stats { color: var(--muted); font-size: 12px; margin-left: auto; }
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .notes .card p { margin: 0; color: var(--muted); }
+  .notes .card b { color: var(--text); }
+  @media (max-width: 720px) { .hero { grid-template-columns: 1fr; } .stats { margin-left: 0; width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Warden: current puppet vs 3D baked</h1>
+  <p class="lede">Same class, same look data, same camera angle and light direction. Left is the current 2D projected puppet. Right is a 3D model built entirely in code (three.js), rigged and animated procedurally, then baked to 2D sprites when the page loads. The game would still blit 2D sprites, so runtime cost is unchanged.</p>
+
+  <div class="bar">
+    <span class="lbl">Anim</span>
+    <div class="seg" id="anim"><button data-v="walk" aria-pressed="true">Walk</button><button data-v="attack">Attack</button><button data-v="idle">Idle</button></div>
+    <span class="lbl">Facing</span>
+    <div class="seg" id="dir"><button data-v="spin" aria-pressed="true">Spin</button><button data-v="0">S</button><button data-v="1">SW</button><button data-v="2">W</button><button data-v="3">NW</button><button data-v="4">N</button><button data-v="5">NE</button><button data-v="6">E</button><button data-v="7">SE</button></div>
+    <span class="lbl">Speed</span>
+    <div class="seg" id="speed"><button data-v="1" aria-pressed="true">1×</button><button data-v="0.35">Slow</button><button data-v="0">Pause</button></div>
+    <span class="stats" id="stats">baking…</span>
+  </div>
+
+  <div class="hero">
+    <div class="card"><h3>Current puppet <span id="oldInfo">8 walk / 8 attack frames</span></h3><canvas id="heroOld"></canvas></div>
+    <div class="card"><h3>3D baked <span id="newInfo"></span></h3><canvas id="heroNew"></canvas></div>
+  </div>
+
+  <h2>All 8 directions at game size</h2>
+  <div class="grid"><table id="grid"></table></div>
+
+  <h2>What changed</h2>
+  <div class="notes">
+    <div class="card"><p><b>Real lighting.</b> One warm key light from the upper left (where the game's light comes from), a cool rim from behind, and image-based reflections on the metal. Plate gets real specular highlights and soft self-shadows instead of painted gradients.</p></div>
+    <div class="card"><p><b>Real anatomy and motion.</b> Legs use two-bone IK with heel strike and toe-off. The pelvis bobs, rolls and twists against the shoulders. The cloak is a mesh driven by a travelling wave. The attack is keyframed: wind-up, strike, follow-through.</p></div>
+    <div class="card"><p><b>Same pipeline cost.</b> Everything is generated from the class's look data at load, so there are no model files or art assets. Bake time is shown above. More frames per animation cost only memory.</p></div>
+  </div>
+</main>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
