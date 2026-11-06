@@ -5,6 +5,7 @@
  * melee cleave resolves through entities/combat.js.
  */
 import { SKILLS } from '../../data/balance/skills.js';
+import { activeStr } from '../../data/strings.js';
 import { DIRS8, dirFromDelta } from '../world/pathfind.js';
 import { isWalkable } from '../world/tiles.js';
 import { worldPos } from '../render/camera.js';
@@ -186,7 +187,7 @@ export function castSkill(game, caster, skillId, target, opts = {}) {
   if (player && !opts.free) {
     const c = canCast(caster, skillId, { slvl });
     if (!c.ok) {
-      if (game.bus) game.bus.emit('message', { text: c.reason === 'mana' ? 'Not enough mana.' : 'You do not know that skill.', color: 'danger' });
+      if (game.bus) game.bus.emit('message', { text: c.reason === 'mana' ? activeStr('notEnoughMana', 'Not enough mana.') : activeStr('unknownSkill', 'You do not know that skill.'), color: 'danger' });
       if (game.bus) game.bus.emit('sfx', { name: 'error' });
       return false;
     }

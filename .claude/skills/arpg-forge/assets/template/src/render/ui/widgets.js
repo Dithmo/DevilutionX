@@ -364,7 +364,8 @@ export function drawItemInRect(ctx, item, rect) {
 
 /**
  * Skill icon: a rune disc in the skill's colour with its glyph letter.
- * @param {{color?:string,glyph?:string}} look
+ * look.icon (1-2 chars) overrides the glyph-derived letter, so themes can label skills distinctly.
+ * @param {{color?:string,glyph?:string,icon?:string}} look
  */
 export function drawSkillIcon(ctx, rect, look = {}, opts = {}) {
   const pal = palette(opts.game);
@@ -379,10 +380,11 @@ export function drawSkillIcon(ctx, rect, look = {}, opts = {}) {
   ctx.strokeStyle = opts.disabled ? pal.textDim : lighten(color, 0.3);
   ctx.lineWidth = 2;
   ctx.stroke();
-  const glyph = (look.glyph || '?').toString();
+  const glyph = (look.icon || look.glyph || '?').toString();
   const letter = glyph.length <= 2 ? glyph : glyph[0].toUpperCase();
-  drawText(ctx, letter, cx, cy - r * 0.62, {
-    color: opts.disabled ? pal.textDim : '#fff', align: 'center', size: Math.max(10, Math.round(r * 1.2)), weight: 'bold', game: opts.game,
+  const size = Math.max(9, Math.round(r * (letter.length > 1 ? 0.82 : 1.2)));
+  drawText(ctx, letter, cx, cy - size * 0.52, {
+    color: opts.disabled ? pal.textDim : '#fff', align: 'center', size, weight: 'bold', game: opts.game,
   });
 }
 

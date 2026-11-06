@@ -282,7 +282,7 @@ export function generateGold(game, level) {
   const rng = createRng(seed);
   const amount = Math.min(LOOT.goldPerLevelBase * lvl + rng.rand(LOOT.goldPerLevelRand * lvl) + 1, LOOT.goldDropCap);
   return {
-    id: nextId(game), baseId: GOLD_ID, name: 'Gold', slot: 'gold', type: 'gold', size: { w: 1, h: 1 },
+    id: nextId(game), baseId: GOLD_ID, name: (game.strings && (game.strings.goldItem || game.strings.gold)) || 'Gold', slot: 'gold', type: 'gold', size: { w: 1, h: 1 },
     quality: 'normal', identified: true, level: lvl, req: { str: 0, dex: 0, mag: 0 }, dmg: null, ac: null, dur: null,
     affixes: [], unique: null, effects: {}, charges: null, count: amount, price: { buy: amount, sell: amount },
     look: { glyph: 'coin', color: '#e0c040', color2: '#a08020' }, seed,

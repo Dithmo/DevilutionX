@@ -51,7 +51,7 @@ console.log('== class pools (reference level-1 table) ==');
 {
   const g = fakeGame();
   const w = S.createPlayerBase(g, 'warden', 'W');
-  assertEq(w.hpMax, 70, 'warden life'); assertEq(w.mpMax, 10, 'warden mana');
+  assertEq(w.hpMax, 70, 'warden life'); assertEq(w.mpMax, 20, 'warden mana');
   const s = S.createPlayerBase(g, 'stalker', 'S');
   assertEq(s.hpMax, 45, 'stalker life'); assertEq(s.mpMax, 23, 'stalker mana');
   const h = S.createPlayerBase(g, 'hexwright', 'H');

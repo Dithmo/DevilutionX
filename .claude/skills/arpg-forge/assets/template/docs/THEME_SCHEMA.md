@@ -95,7 +95,7 @@ Consumable = { id, name, kind: 'potion'|'scroll'|'tome'|'elixir'|'key'|'misc', e
   element, manaBase, manaPerLevel, manaMin, minMag, classes: [classId], learnLevel,
   dmg: { base: [lo,hi], perCasterLevel: [lo,hi], perSkillLevel: [lo,hi] },  // dmg = base + perCasterLevel*clvl + perSkillLevel*slvl
   missile: { speed, range, radius?, count?, spread? }, buff?: { stat, value, duration },
-  look: { color, glyph }, sfx }
+  look: { color, glyph, icon? }, sfx }   // icon: 1–2 chars drawn on the skill button (else glyph's first letter)
 ```
 
 ## Objects
@@ -127,3 +127,6 @@ flavor = { deathLines: [string], loadingTips: [string], intro: [string], outro: 
 SynthDescriptor = { type: 'sine'|'square'|'saw'|'triangle'|'noise', freq, slide?, dur, decay?, volume? }
 strings = { life: 'Life', mana: 'Mana', gold: 'Gold', potion: 'Potion', skills: 'Skills', town: 'Town', ... }
 ```
+`life`, `mana` and `gold` also rename those words in generated text (affix lines, potion and
+gold tooltips, skill costs). Other engine messages: `goldItem` (name of a dropped gold pile),
+`notEnoughMana`, `unknownSkill`, `hardcoreBadge` (HUD tag in a permadeath run).

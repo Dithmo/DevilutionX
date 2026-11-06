@@ -102,7 +102,7 @@ export default [
   {
     id: 'homing_spite', name: 'Homing Spite', blurb: 'A hateful spark that hunts its target down.',
     archetype: 'homing', element: 'arcane',
-    manaBase: 35, manaPerLevel: 2, manaMin: 20, minMag: 55, classes: ['hexwright'], learnLevel: 12,
+    manaBase: 35, manaPerLevel: 2, manaMin: 20, minMag: 55, classes: ['hexwright', 'stalker'], learnLevel: 12,
     dmg: { base: [2, 10], perCasterLevel: [1, 1], perSkillLevel: [0.5, 1.5] },    // half a fireball
     missile: { speed: 0.25, range: 300, radius: 1 },
     look: { color: '#d070ff', glyph: 'orb' }, sfx: 'cast',

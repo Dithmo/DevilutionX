@@ -4,6 +4,7 @@
  * table used by item tooltips. Pure functions over an rng passed in.
  */
 import { LOOT } from '../../data/balance/loot.js';
+import { word } from '../../data/strings.js';
 
 const PCT = 100;
 const ELEM_MIN_SUFFIX = 'Min';
@@ -96,8 +97,8 @@ export const STAT_LABELS = {
   dex: (v) => `${sign(v)} dexterity`,
   vit: (v) => `${sign(v)} vitality`,
   allStats: (v) => `${sign(v)} to all attributes`,
-  life: (v) => `${sign(v)} life`,
-  mana: (v) => `${sign(v)} mana`,
+  life: (v) => `${sign(v)} ${word('life')}`,
+  mana: (v) => `${sign(v)} ${word('mana')}`,
   resFire: (v) => `${sign(v)}% fire resist`,
   resCold: (v) => `${sign(v)}% cold resist`,
   resShock: (v) => `${sign(v)}% shock resist`,
@@ -106,14 +107,14 @@ export const STAT_LABELS = {
   lightRadius: (v) => `${sign(v)} light radius`,
   attackSpeed: (v) => `${['', 'quick', 'fast', 'faster', 'fastest'][Math.min(Math.max(v, 0), LOOT.attackSpeedMax)] || sign(v)} attack`,
   hitRecover: (v) => `${['', 'fast', 'faster', 'fastest'][Math.min(Math.max(v, 0), LOOT.hitRecoverMax)] || sign(v)} hit recovery`,
-  lifeSteal: (v) => `hits steal ${v}% life`,
-  manaSteal: (v) => `hits steal ${v}% mana`,
+  lifeSteal: (v) => `hits steal ${v}% ${word('life')}`,
+  manaSteal: (v) => `hits steal ${v}% ${word('mana')}`,
   durability: (v) => (v >= 0 ? 'high durability' : 'decreased durability'),
   indestructible: () => 'indestructible',
   thorns: (v) => `attackers take ${v} damage`,
   knockback: () => 'knocks targets back',
   spellLevels: (v) => `${sign(v)} to skill levels`,
-  manaCostPct: (v) => `${v}% reduced mana cost`,
+  manaCostPct: (v) => `${v}% reduced ${word('mana')} cost`,
   blockPct: (v) => `${sign(v)}% block chance`,
   walkSpeed: (v) => `${sign(v)}% walk speed`,
 };

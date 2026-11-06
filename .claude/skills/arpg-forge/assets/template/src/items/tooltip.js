@@ -6,6 +6,7 @@
 import { LOOT } from '../../data/balance/loot.js';
 import { effectLine } from './affixes.js';
 import { itemMeetsReq } from './itemgen.js';
+import { word } from '../../data/strings.js';
 
 const DEFAULT_PALETTE = {
   rarity: { normal: '#e8e0d0', magic: '#7aa0ff', rare: '#f0d060', unique: '#d8a040' },
@@ -33,7 +34,7 @@ export function itemTooltipLines(item, player, palette = DEFAULT_PALETTE) {
   const nameColor = known ? pal.rarity[item.quality] || pal.text : pal.textDim;
   lines.push({ text: known ? item.name : (item.baseName || item.name), color: nameColor });
   if (item.slot === 'gold') {
-    lines.push({ text: `${item.count} gold`, color: pal.text });
+    lines.push({ text: `${item.count} ${word('gold')}`, color: pal.text });
     return lines;
   }
   if (item.dmg) lines.push({ text: `Damage: ${item.dmg.min}-${item.dmg.max}`, color: pal.text });
@@ -66,9 +67,9 @@ export function itemTooltipLines(item, player, palette = DEFAULT_PALETTE) {
 
 function consumableBlurb(effect) {
   switch (effect.type) {
-    case 'heal': return effect.value >= 1 ? 'Restores all life' : 'Restores some life';
-    case 'mana': return effect.value >= 1 ? 'Restores all mana' : 'Restores some mana';
-    case 'rejuv': return effect.value >= 1 ? 'Restores all life and mana' : 'Restores some life and mana';
+    case 'heal': return `Restores ${effect.value >= 1 ? 'all' : 'some'} ${word('life')}`;
+    case 'mana': return `Restores ${effect.value >= 1 ? 'all' : 'some'} ${word('mana')}`;
+    case 'rejuv': return `Restores ${effect.value >= 1 ? 'all' : 'some'} ${word('life')} and ${word('mana')}`;
     case 'stat': return `Permanently +${effect.value} ${STAT_NAMES[effect.stat] || effect.stat}`;
     case 'castSkill': return 'Casts when used';
     case 'learnSkill': return 'Teaches a skill';

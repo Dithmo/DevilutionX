@@ -20,7 +20,7 @@ const WARDEN = {
   blurb: 'A wall-watch veteran. Heavy arms, heavier patience; hits hard and shrugs off blows.',
   base: { str: 30, mag: 10, dex: 20, vit: 25 },
   max: { str: 250, mag: 50, dex: 60, vit: 100 },
-  startLife: 20, startMana: 0, lifePerLevel: 2, manaPerLevel: 1, lifePerVit: 2, manaPerMag: 1,
+  startLife: 20, startMana: 10, lifePerLevel: 2, manaPerLevel: 1, lifePerVit: 2, manaPerMag: 1,
   toHitBase: 70,          // reference melee class base to-hit
   blockBase: 30,          // reference melee block bonus
   critOnLevel: true,      // reference: CriticalStrike flag, level% chance x2

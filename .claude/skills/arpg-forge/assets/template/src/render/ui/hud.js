@@ -153,6 +153,19 @@ function drawXpBar(ctx, game, p) {
     const name = levelName(game);
     drawText(ctx, name, L.xpBar.x + L.xpBar.w + 6, L.xpBar.y - 4, { size: XP_LEVEL_SIZE, color: pal.textDim, game, maxW: 150 });
   }
+  // Permadeath badge: a constant reminder that this hero's save dies with them, in the empty
+  // strip between the left button column and the info box.
+  if (game.flags && game.flags.hardcore) {
+    const lb = L.leftButtons;
+    const x0 = lb.x + lb.w + 8;
+    const r = { x: x0, y: lb.y, w: Math.max(40, L.infoBox.x - 8 - x0), h: 18 };
+    ctx.save();
+    ctx.strokeStyle = pal.danger;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+    ctx.restore();
+    drawText(ctx, str(game, 'hardcoreBadge', 'PERMADEATH'), r.x + r.w / 2, r.y + 3, { align: 'center', size: 10, weight: 'bold', color: pal.danger, game, maxW: r.w - 6 });
+  }
 }
 
 function levelName(game) {

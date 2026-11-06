@@ -159,7 +159,8 @@ export function levelUp(game) {
   const learned = cls.levelSkills && cls.levelSkills[p.level];
   if (learned && !(p.skills[learned] >= 1)) {
     p.skills[learned] = 1;
-    game.bus.emit('message', { text: `You learned ${learned.replace(/_/g, ' ')}.`, color: game.theme.palette.good });
+    const def = (game.theme.skills || []).find((sk) => sk.id === learned);
+    game.bus.emit('message', { text: `You learned ${def && def.name ? def.name : learned.replace(/_/g, ' ')}.`, color: game.theme.palette.good });
   }
   game.bus.emit('sfx', { name: 'levelup' });
   game.bus.emit('message', { text: `You have reached level ${p.level}.`, color: game.theme.palette.xp });

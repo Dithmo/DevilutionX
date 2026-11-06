@@ -68,7 +68,10 @@ Rules of thumb while writing:
 - Each tier's monster levels must overlap the item levels players will have there (tier n
   spans roughly levels 6n−5 … 6n+2). Bosses are 3–6× the HP of their tier's biggest regular.
 - Run `node tools/validate_theme.mjs` after each file. It catches dangling ids, missing
-  scrolls/tomes, empty tiers, and unreachable skills.
+  scrolls/tomes, empty tiers, unreachable skills, and skills a class is handed (start or
+  level-up) but cannot afford with its mana at that level.
+- Rename the resources in `strings.js` (`life`, `mana`, `gold`, `goldItem`, `notEnoughMana`):
+  tooltips, affix lines and messages pick the new words up, so no engine edit is needed.
 
 ## 4. Extend (only what the user asked for)
 

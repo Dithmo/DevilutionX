@@ -294,7 +294,11 @@ export function drawCharacter(ctx, game) {
   registerHit(game, panel, { kind: 'panel', name: 'character' });
   if (!p) return;
   const cls = classDef(game, p.classId);
-  const d = p.derived || {};
+  // p.derived holds ITEM contributions only (see items/recalc.js); the sheet shows the fully
+  // summed numbers (class base + level + stats + items) from playerStatsSummary.
+  const sum = call(bridge.PlayerMod, 'playerStatsSummary', null, game);
+  const d = { ...(p.derived || {}), ...((p.derived && p.derived.display) || {}) };
+  if (sum) for (const k of ['ac', 'toHit', 'dmgMin', 'dmgMax', 'blockChance']) if (typeof sum[k] === 'number') d[k] = sum[k];
   const { prev, next } = xpBounds(game, p);
   const lx = panel.x + C.labelX;
   const vx = panel.x + C.nowX + 36;

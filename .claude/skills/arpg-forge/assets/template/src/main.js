@@ -30,7 +30,7 @@ import { initSkills } from './skills/skills.js';
 import { initQuests, updateQuests } from './quests/quests.js';
 import { installMetaHooks, updateNpcs, gossipLine, serviceHeal } from './npc/npcs.js';
 import { saveGame, loadGame, restoreGame, deleteSave } from './save/save.js';
-import { mergeStrings } from '../data/strings.js';
+import { mergeStrings, setActiveStrings } from '../data/strings.js';
 import BALANCE from '../data/balance/index.js';
 import ACTIVE_THEME from '../data/active_theme.js';
 
@@ -106,6 +106,7 @@ export async function loadContent(game, themeId = ACTIVE_THEME) {
   const mod = await import(`../data/themes/${themeId}/index.js`);
   game.theme = mod.default;
   game.strings = mergeStrings(game.theme.strings || {});
+  setActiveStrings(game.strings);
   game.ui.loading = { title: game.theme.meta.title, text: game.strings.loading || 'Loading', progress: 0.3 };
   await levelDepsReady;
   await loadItemDeps();

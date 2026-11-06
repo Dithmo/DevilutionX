@@ -25,6 +25,7 @@ import { weaponDamage } from './combat_rolls.js';
 import { dist, dirToDelta } from '../world/pathfind.js';
 import { worldPos } from '../render/camera.js';
 import * as C from '../../data/balance/combat.js';
+import { activeStr } from '../../data/strings.js';
 import { REPATH_WAIT_TICKS, MAX_REPATH_TRIES } from '../../data/balance/progression.js';
 
 export * from './player_stats.js';
@@ -243,7 +244,7 @@ function processIntent(game, p, cls) {
       if (p.walk) return;
       const target = resolveTarget(level, it.target);
       if (p.mp < manaCost(p, skillId)) {
-        game.bus.emit('message', { text: MSG_NO_MANA, color: game.theme.palette.textDim });
+        game.bus.emit('message', { text: activeStr('notEnoughMana', MSG_NO_MANA), color: game.theme.palette.textDim });
         game.bus.emit('sfx', { name: 'error' });
         p.intent = null;
         return;

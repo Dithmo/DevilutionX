@@ -5,6 +5,7 @@
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
+import { SKILLS as SKILL_BAL } from '../data/balance/skills.js';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const MIN = { tilesets: 4, tiers: 4, classes: 3, skills: 12, bases: 20, prefixes: 20, suffixes: 20,
@@ -89,6 +90,22 @@ function check(theme) {
     const reach = new Set([c.startSkill, ...(c.skillPool || []), ...Object.values(c.levelSkills || {})].filter(Boolean));
     if (reach.size < 4) err(`class ${c.id}: fewer than 4 reachable skills`);
     if (!SILH.has(c.look?.silhouette)) err(`class ${c.id}: look.silhouette invalid`);
+    // Affordability: a skill the class is handed (startSkill at level 1, levelSkills[L] at
+    // level L) must cost no more than the class's mana pool at that level with base stats only
+    // (no points spent, no items), else the gift is unusable.
+    const mpAt = (L) => Math.floor(c.startMana + c.manaPerLevel * (L - 1) + c.manaPerMag * (c.base?.mag || 0));
+    const costAt = (sk, L) => {
+      const inClass = !sk.classes || !sk.classes.length || sk.classes.includes(c.id);
+      const raw = (sk.manaBase || 0) + (sk.manaPerCasterLevel || 0) * L;
+      return Math.max(sk.manaMin || 0, Math.round(raw * (inClass ? SKILL_BAL.inClassManaMult : SKILL_BAL.offClassManaMult)));
+    };
+    const gifts = [[1, c.startSkill], ...Object.entries(c.levelSkills || {}).map(([L, s]) => [Number(L), s])];
+    for (const [L, sid] of gifts) {
+      const sk = sid && t.skills.find((x) => x.id === sid);
+      if (!sk || sk.archetype === 'melee') continue;
+      const cost = costAt(sk, L), mp = mpAt(L);
+      if (cost > mp) err(`class ${c.id}: ${L === 1 ? 'startSkill' : `levelSkills[${L}]`} ${sid} costs ${cost} mana but the class has ${mp} at level ${L} with base stats`);
+    }
   }
   for (const s of t.skills) {
     if (!ARCH.has(s.archetype)) err(`skill ${s.id}: unknown archetype ${s.archetype}`);

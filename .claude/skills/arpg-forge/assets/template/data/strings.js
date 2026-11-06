@@ -37,6 +37,8 @@ export const DEFAULT_STRINGS = {
   portalInTown: 'The portal only goes one way from here.', enterTown: 'Hollow ground.',
   levelUp: 'You feel stronger.', pickUp: 'Pick up', open: 'Open', use: 'Use', talk: 'Talk',
   monsterLevel: 'Monster level', kills: 'Kills', deaths: 'Deaths', playTime: 'Time',
+  notEnoughMana: 'Not enough mana.', unknownSkill: 'You do not know that skill.', goldItem: 'Gold',
+  hardcoreBadge: 'PERMADEATH',
 };
 
 /**
@@ -46,6 +48,22 @@ export const DEFAULT_STRINGS = {
  */
 export function mergeStrings(overrides) {
   return { ...DEFAULT_STRINGS, ...(overrides || {}) };
+}
+
+/**
+ * The strings of the running game, for code that has no `game` handle (affix lines, item
+ * tooltips, skill tooltips). main.js sets them in loadContent; defaults until then.
+ */
+let ACTIVE = DEFAULT_STRINGS;
+export function setActiveStrings(strings) { ACTIVE = strings || DEFAULT_STRINGS; }
+/** Lower-case resource word ('life', 'mana', 'gold' or the theme's renames). */
+export function word(key) {
+  return String(ACTIVE[key] || DEFAULT_STRINGS[key] || key).toLowerCase();
+}
+/** A string of the running game, with a fallback. */
+export function activeStr(key, fallback) {
+  const s = ACTIVE[key];
+  return typeof s === 'string' ? s : fallback;
 }
 
 export default DEFAULT_STRINGS;

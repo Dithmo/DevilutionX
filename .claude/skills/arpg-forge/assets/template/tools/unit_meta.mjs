@@ -341,9 +341,9 @@ test('save → load → restore roundtrip', () => {
   game.player.path = [{ x: 1, y: 2 }];
   game.player.intent = { type: 'move' };
   assert.equal(saveGame(game, 'slot1'), true);
-  assert.equal(hasSave('slot1'), true);
-  assert.ok(localStorage.getItem('arpg:default:slot1'));
-  const data = loadGame('slot1');
+  assert.equal(hasSave('slot1', meta.id), true);
+  assert.ok(localStorage.getItem(`arpg:${meta.id}:slot1`));
+  const data = loadGame('slot1', meta.id);
   assert.ok(data && data.version === 1);
   const game2 = fakeGame(1);
   restoreGame(data, game2);
@@ -360,10 +360,10 @@ test('save → load → restore roundtrip', () => {
   assert.equal(game2.town.npcs.length, 6);
   assert.equal(game2.level.objects[0].state, 'open');
   assert.equal(game2.rng.state, game.rng.state);
-  assert.equal(listSaves()[0].slot, 'slot1');
-  assert.equal(listSaves()[0].summary.name, 'Tester');
-  assert.equal(deleteSave('slot1'), true);
-  assert.equal(hasSave('slot1'), false);
+  assert.equal(listSaves(meta.id)[0].slot, 'slot1');
+  assert.equal(listSaves(meta.id)[0].summary.name, 'Tester');
+  assert.equal(deleteSave('slot1', meta.id), true);
+  assert.equal(hasSave('slot1', meta.id), false);
   assert.equal(loadGame('nope'), null);
 });
 
@@ -375,7 +375,7 @@ test('storage unavailable never throws', () => {
   assert.equal(saveGame(game, 'x'), false);
   assert.equal(loadGame('x'), null);
   assert.equal(hasSave('x'), false);
-  assert.deepEqual(listSaves(), []);
+  assert.deepEqual(listSaves(meta.id), []);
   Object.defineProperty(globalThis, 'localStorage', { value: saved, configurable: true, writable: true });
 });
 

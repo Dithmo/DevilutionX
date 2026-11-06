@@ -4,6 +4,7 @@
  * `game.theme.skills` on first use (or explicitly via `initSkills`).
  */
 import { SKILLS } from '../../data/balance/skills.js';
+import { activeStr } from '../../data/strings.js';
 
 export { castSkill } from './cast.js';
 
@@ -165,10 +166,10 @@ export function skillTooltipLines(player, skillId, palette = DEFAULT_PALETTE) {
   if (def.blurb) lines.push({ text: def.blurb, color: pal.textDim });
   if (slvl > 0) {
     lines.push({ text: `Level ${slvl}`, color: pal.text });
-    lines.push({ text: `Mana: ${manaCost(player, skillId)}`, color: (player.mp || 0) >= manaCost(player, skillId) ? pal.text : pal.danger });
+    lines.push({ text: `${activeStr('mana', 'Mana')}: ${manaCost(player, skillId)}`, color: (player.mp || 0) >= manaCost(player, skillId) ? pal.text : pal.danger });
   } else {
     lines.push({ text: 'Not learned', color: pal.danger });
-    lines.push({ text: `Mana: ${manaCost(player, skillId, 1)}`, color: pal.textDim });
+    lines.push({ text: `${activeStr('mana', 'Mana')}: ${manaCost(player, skillId, 1)}`, color: pal.textDim });
   }
   const lvl = Math.max(1, slvl);
   if (def.useWeaponDmg) {
