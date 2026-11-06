@@ -8,6 +8,7 @@
  */
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { boxUV, makeAOUniforms, makePBRMaterials, dungeonEnv, rimGeom, lathePoints } from './pbr.js';
 
 const PI = Math.PI;
 const COS30 = Math.cos(PI / 6);
@@ -165,9 +166,12 @@ function mailTexture() {
 /**
  * Build the warden from a look. Returns { root, J (joints), update(anim, t) }.
  */
-export function buildCharacter(look) {
+export function buildCharacter(look, opts = {}) {
   const C = (hex) => new THREE.Color(hex);
-  const mats = {
+  const pbr = !!opts.pbr;
+  const U = opts.U;
+  const emblem = emblemTexture(look.cloakColor || '#5a2a22', look.bodyColor || '#b08a5a', '#c9a24a');
+  const mats = pbr ? makePBRMaterials(look, opts.tex, U, { mail: mailTexture(), emblem }) : {
     plate: new THREE.MeshStandardMaterial({ color: C(look.bodyColor || '#b08a5a'), metalness: 0.78, roughness: 0.36 }),
     steel: new THREE.MeshStandardMaterial({ color: C(look.metalColor || '#c4c8cc').multiplyScalar(0.78), metalness: 0.9, roughness: 0.34 }),
     dark: new THREE.MeshStandardMaterial({ color: C('#3a3c42'), metalness: 0.85, roughness: 0.5 }),
@@ -177,7 +181,13 @@ export function buildCharacter(look) {
     cloth: new THREE.MeshStandardMaterial({ map: clothTexture(look.cloakColor || '#5a2a22', look.trimColor || '#4a3a2a'), metalness: 0, roughness: 0.95, side: THREE.DoubleSide }),
     void: new THREE.MeshBasicMaterial({ color: 0x050405 }),
   };
+  if (!pbr) {
+    mats.edge = mats.plate;
+    mats.shieldFace = new THREE.MeshStandardMaterial({ map: emblem, metalness: 0.25, roughness: 0.55 });
+  }
+  let uvSeed = 1;
   const mesh = (g, m, parent, x = 0, y = 0, z = 0) => {
+    if (pbr && !Array.isArray(m) && m.userData.tile && !m.userData.keepUV) g = boxUV(g, m.userData.tile, uvSeed++);
     const o = new THREE.Mesh(g, m);
     o.position.set(x, y, z);
     o.castShadow = o.receiveShadow = true;
@@ -185,6 +195,11 @@ export function buildCharacter(look) {
     return o;
   };
   const joint = (parent, x = 0, y = 0, z = 0) => { const j = new THREE.Object3D(); j.position.set(x, y, z); parent.add(j); return j; };
+  /** Rolled plate edge (PBR build only). */
+  const rim = (parent, lp, tube = 0.32, mat = mats.edge) => { if (pbr) mesh(rimGeom(lp.pts, tube, lp.closed), mat, parent); };
+  /** Occluder spheres that follow the skeleton: [joint, local offset, radius]. */
+  const occ = [];
+  const occluder = (j, x, y, z, r) => occ.push([j, new THREE.Vector3(x, y, z), r]);
 
   const root = new THREE.Object3D();
   const J = {};
@@ -198,6 +213,11 @@ export function buildCharacter(look) {
     const y = 3.2 - i * 2.4;
     const r0 = 8.1 + i * 0.55;
     mesh(faceted(lathe([[r0, y], [r0 + 0.6, y - 2.6]], 22, 0.74, -PI * 0.42, PI * 0.84)), i % 2 ? mats.steel : mats.plate, J.pelvis);
+    rim(J.pelvis, lathePoints(r0 + 0.62, y - 2.6, 0.74, -PI * 0.42, PI * 0.84, 22), 0.3);
+    if (pbr) for (const ph of [-0.3 * PI, 0, 0.3 * PI]) {
+      const rr = r0 + 0.45;
+      mesh(new THREE.SphereGeometry(0.42, 8, 6), mats.gold, J.pelvis, rr * Math.sin(ph), y - 1.0, rr * Math.cos(ph) * 0.74 + 0.15);
+    }
   }
 
   /* legs */
@@ -207,6 +227,8 @@ export function buildCharacter(look) {
     const thigh = joint(hip);
     mesh(limb(B.thigh, 4.4, 3.5), mats.mail, thigh);
     mesh(shell(B.thigh * 0.8, 4.9, 4.1, -1), mats.plate, thigh);
+    rim(thigh, lathePoints(4.9 * 0.93, -0.7, 1, -PI * 0.625, PI * 1.25, 18));
+    rim(thigh, lathePoints(4.1 * 0.93, -1 - B.thigh * 0.8 - 0.3, 1, -PI * 0.625, PI * 1.25, 18));
     const knee = joint(thigh, 0, -B.thigh, 0);
     mesh(new THREE.SphereGeometry(2.6, 14, 10).scale(1.2, 1.05, 0.9), mats.steel, knee, 0, 0.3, 2.6);
     mesh(new THREE.ConeGeometry(2.4, 1.2, 12).rotateX(PI / 2).scale(1.4, 1, 1), mats.steel, knee, 0, 0.3, 3.3);
@@ -236,11 +258,15 @@ export function buildCharacter(look) {
     cuirass.computeVertexNormals();
   }
   mesh(cuirass, mats.plate, J.chest);
+  rim(J.chest, lathePoints(7.45, -4, 0.7), 0.4);
   // plackart (lower belly plate) + rivets
   mesh(faceted(lathe([[7.9, -3.6], [8.3, 0.5], [9.6, 4.4]], 20, 0.74, -PI * 0.33, PI * 0.66)), mats.steel, J.chest);
+  rim(J.chest, lathePoints(9.65, 4.4, 0.74, -PI * 0.33, PI * 0.66, 20), 0.3);
   for (const rx of [-4.2, 4.2]) mesh(new THREE.SphereGeometry(0.55, 8, 6), mats.gold, J.chest, rx, 2.6, 6.9);
   // gorget
   mesh(lathe([[5.6, 14.6], [5.2, 16.6], [3.6, 18.6], [3.4, 19.6]], 20, 0.85), mats.steel, J.chest);
+  rim(J.chest, lathePoints(3.45, 19.6, 0.85), 0.28);
+  rim(J.chest, lathePoints(5.65, 14.6, 0.85), 0.3);
   // shoulder straps
   for (const sx of [1, -1]) mesh(new THREE.BoxGeometry(2.2, 0.8, 12), mats.leather, J.chest, sx * 6.2, 15.7, 0);
 
@@ -258,6 +284,7 @@ export function buildCharacter(look) {
   J.head = joint(J.neck, 0, 1.5, 0);
   const helmProf = [[0.1, 11.4], [3.0, 11.0], [5.0, 9.9], [6.0, 8.0], [6.4, 5], [6.3, 0.5], [5.9, -1.5], [5.3, -2.2]];
   mesh(lathe(helmProf, 28, 1.05), mats.plate, J.head);
+  rim(J.head, lathePoints(5.35, -2.2, 1.05), 0.42);
   // vertical front ridge
   mesh(new THREE.BoxGeometry(0.9, 11, 1.2), mats.plate, J.head, 0, 4.4, 6.5);
   // brow band + visor slits + breaths
@@ -276,6 +303,7 @@ export function buildCharacter(look) {
     const upper = joint(sh);
     mesh(limb(B.arm, 3.8, 3.2), mats.mail, upper);
     mesh(shell(B.arm * 0.62, 4.15, 3.7, -3.2, PI * 1.5), mats.plate, upper);
+    rim(upper, lathePoints(3.7 * 0.93, -3.2 - B.arm * 0.62 - 0.3, 1, -PI * 0.75, PI * 1.5, 18));
     const elbow = joint(upper, 0, -B.arm, 0);
     mesh(new THREE.SphereGeometry(2.4, 12, 10).scale(1.05, 1, 1.15), mats.plate, elbow, 0, 0, -1.2);
     mesh(new THREE.ConeGeometry(2.6, 1.3, 12).rotateX(-PI / 2).scale(1, 1.4, 1), mats.plate, elbow, sx * 1.6, 0, -1.6);
@@ -293,6 +321,8 @@ export function buildCharacter(look) {
       const g = new THREE.SphereGeometry(r, 18, 10, 0, PI * 2, 0, PI * 0.42 + k * 0.05).scale(1, 0.62, 1.02);
       const m = mesh(g, k === 0 ? mats.plate : (k === 1 ? mats.steel : mats.plate), pa, sx * (1.2 + k * 0.9), -k * 1.9, 0);
       m.rotation.z = -sx * (0.35 + k * 0.18);
+      const th = PI * 0.42 + k * 0.05;
+      rim(m, lathePoints(r * Math.sin(th), r * Math.cos(th) * 0.62, 1.02), 0.38);
     }
     mesh(new THREE.SphereGeometry(0.6, 8, 6), mats.gold, pa, sx * 3.6, 0.6, 3.2);
     J['sh' + side] = sh; J['arm' + side] = upper; J['fore' + side] = fore; J['hand' + side] = hand; J['paul' + side] = pa;
@@ -345,12 +375,35 @@ export function buildCharacter(look) {
   const mount = joint(J.foreL, 0, -6.5, 0);
   const sg = shieldGeom();
   sg.rotateX(PI / 2); sg.rotateZ(PI / 2); // face +Z -> +X, up +Y -> +Z
-  const tex = emblemTexture(look.cloakColor || '#5a2a22', look.bodyColor || '#b08a5a', '#c9a24a');
-  const faceMat = new THREE.MeshStandardMaterial({ map: tex, metalness: 0.25, roughness: 0.55 });
-  const sh = mesh(sg, [faceMat, mats.steel], mount, 4.4, 0, 0);
+  const sh = mesh(sg, [mats.shieldFace, mats.steel], mount, 4.4, 0, 0);
   mesh(new THREE.SphereGeometry(2.1, 14, 10, 0, PI * 2, 0, PI / 2).rotateZ(-PI / 2), mats.gold, mount, 5.8, 0, 1.0);
   J.shield = mount;
   void sh;
+
+  occluder(J.pelvis, 0, 0, 0, 8);
+  occluder(J.chest, 0, 4, 0, 8.5);
+  occluder(J.chest, 0, 11, 0, 9.5);
+  occluder(J.head, 0, 4.5, 0, 6.5);
+  for (const sd of ['L', 'R']) {
+    const sx = sd === 'L' ? 1 : -1;
+    occluder(J['arm' + sd], 0, -6, 0, 4.2);
+    occluder(J['fore' + sd], 0, -6, 0, 3.5);
+    occluder(J['hand' + sd], 0, -1.5, 0, 2.4);
+    occluder(J['thigh' + sd], 0, -7.5, 0, 4.8);
+    occluder(J['shin' + sd], 0, -7.5, 0, 3.8);
+    occluder(J['foot' + sd], 0, -1.5, 2.5, 3.2);
+    occluder(J['paul' + sd], sx * 1.5, -1, 0, 6);
+  }
+  occluder(J.shield, 4.4, 0, 0, 7);
+  const tmpO = new THREE.Vector3();
+  function updateAO() {
+    if (!U) return;
+    root.updateMatrixWorld(true);
+    occ.forEach(([j, off, r], i) => {
+      tmpO.copy(off); j.localToWorld(tmpO);
+      U.uSph.value[i].set(tmpO.x, tmpO.y, tmpO.z, r);
+    });
+  }
 
   /* ------------------------------------------------ posing */
   const tmpV = new THREE.Vector3();
@@ -434,6 +487,11 @@ export function buildCharacter(look) {
 
   /** Pose for anim ('walk' | 'attack' | 'idle') at t in [0,1). */
   function update(anim, t) {
+    poseFrame(anim, t);
+    updateAO();
+  }
+
+  function poseFrame(anim, t) {
     const P = J.pelvis;
     P.position.set(0, B.hipY, 0);
     P.rotation.set(0, 0, 0);
@@ -562,7 +620,7 @@ export const BOX = { w: 150, h: 160, ax: 75, ay: 132 };
  * Create a baker: owns the WebGL renderer, scene, lights, camera.
  * bake(look, {scale, frames:{walk,attack,idle}, ss}) -> { sheets: {anim: [dir][frame] canvas}, ms }
  */
-export function createBaker() {
+export function createBaker(tex) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -574,11 +632,15 @@ export function createBaker() {
 
   const scene = new THREE.Scene();
   const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
-  scene.environmentIntensity = 0.4;
+  const ENV = {
+    flat: { tex: pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture, intensity: 0.4, hemi: 0.55 },
+    pbr: { tex: tex ? dungeonEnv(renderer) : null, intensity: 1.9, hemi: 0.4 },
+  };
+  const U = makeAOUniforms();
 
   // lights live in screen-fixed positions (upper-left key like the game's LIGHT_X/Y)
-  scene.add(new THREE.HemisphereLight(0xd8d2ff, 0x2a1d14, 0.55));
+  const hemi = new THREE.HemisphereLight(0xd8d2ff, 0x2a1d14, 0.55);
+  scene.add(hemi);
   const key = new THREE.DirectionalLight(0xffe0b8, 3.1);
   key.position.set(-45, 160, 45);
   key.castShadow = true;
@@ -611,13 +673,19 @@ export function createBaker() {
   cam.position.set(0, SIN30 * 600, COS30 * 600);
   cam.lookAt(0, 0, 0);
 
-  let current = null;
-
-  function setLook(look) {
-    if (current) yawer.remove(current.root);
-    current = buildCharacter(look);
-    yawer.add(current.root);
-    return current;
+  const chars = {};
+  function charFor(look, pbr) {
+    const k = pbr ? 'pbr' : 'flat';
+    if (!chars[k]) {
+      chars[k] = buildCharacter(look, { pbr, tex, U });
+      yawer.add(chars[k].root);
+    }
+    for (const [n, c] of Object.entries(chars)) c.root.visible = n === k;
+    const e = ENV[k];
+    scene.environment = e.tex;
+    scene.environmentIntensity = e.intensity;
+    hemi.intensity = e.hemi;
+    return chars[k];
   }
 
   /**
@@ -632,7 +700,7 @@ export function createBaker() {
     const W = Math.ceil(BOX.w * scale * dpr), H = Math.ceil(BOX.h * scale * dpr);
     const cache = new Map();
     const stats = { sprites: 0, ms: 0 };
-    const ch = current || setLook(look);
+    const pbr = !!opts.pbr;
     function get(anim, dir, f) {
       const key = anim + dir + '|' + f;
       let c = cache.get(key);
@@ -643,6 +711,7 @@ export function createBaker() {
       cam.updateProjectionMatrix();
       holder.scale.set(1, 1 / COS30, 1);
       yawer.rotation.y = dirYaw(dir);
+      const ch = charFor(look, pbr);
       ch.update(anim, f / frames[anim]);
       renderer.render(scene, cam);
       c = finish(renderer.domElement, W, H, scale * dpr);
@@ -653,10 +722,10 @@ export function createBaker() {
     function bakeAll() {
       for (const anim of Object.keys(frames)) for (let d = 0; d < 8; d++) for (let f = 0; f < frames[anim]; f++) get(anim, d, f);
     }
-    return { get, bakeAll, frames, scale, W, H, stats };
+    return { get, bakeAll, frames, scale, W, H, stats, pbr };
   }
 
-  return { renderer, scene, setLook, sheet, holder };
+  return { renderer, scene, sheet, holder, U };
 }
 
 /** Downsample the supersampled render, add a soft contact blob and the game's ink outline. */

@@ -1,4 +1,5 @@
 import { createBaker, BOX } from './rig3d.js';
+import { loadPBR } from './pbr.js';
 import { drawActor } from './old/render/draw_actor.js';
 import { setRenderScale } from './old/render/draw_util.js';
 
@@ -18,22 +19,29 @@ setRenderScale(DPR);
 const state = { anim: 'walk', dir: 'spin', speed: 1, t: 0 };
 
 /* ---------- bake */
-const baker = createBaker();
-baker.setLook(LOOK);
-const hero = baker.sheet(LOOK, { scale: HERO_ZOOM, dpr: DPR, ss: 2, frames: FRAMES });
-const small = baker.sheet(LOOK, { scale: GRID_ZOOM, dpr: DPR, ss: 2, frames: FRAMES });
-document.getElementById('newInfo').textContent = `${FRAMES.walk} walk / ${FRAMES.attack} attack frames`;
+const tex = await loadPBR('./tex/');
+const baker = createBaker(tex);
+const CLOSE_ZOOM = 5;
+const SH = {
+  heroFlat: baker.sheet(LOOK, { scale: HERO_ZOOM, dpr: DPR, ss: 2, frames: FRAMES }),
+  heroPbr: baker.sheet(LOOK, { scale: HERO_ZOOM, dpr: DPR, ss: 2, frames: FRAMES, pbr: true }),
+  smallFlat: baker.sheet(LOOK, { scale: GRID_ZOOM, dpr: DPR, ss: 2, frames: FRAMES }),
+  smallPbr: baker.sheet(LOOK, { scale: GRID_ZOOM, dpr: DPR, ss: 2, frames: FRAMES, pbr: true }),
+  closeFlat: baker.sheet(LOOK, { scale: CLOSE_ZOOM, dpr: DPR, ss: 1, frames: { idle: 8 } }),
+  closePbr: baker.sheet(LOOK, { scale: CLOSE_ZOOM, dpr: DPR, ss: 1, frames: { idle: 8 }, pbr: true }),
+};
 const statsEl = document.getElementById('stats');
 function showStats() {
-  const n = hero.stats.sprites + small.stats.sprites;
-  const ms = hero.stats.ms + small.stats.ms;
+  let n = 0, ms = 0;
+  for (const s of Object.values(SH)) { n += s.stats.sprites; ms += s.stats.ms; }
   statsEl.textContent = n ? `3D bake: ${n} sprites, ${(ms / n).toFixed(0)} ms each` : 'baking…';
 }
 window.__ready = true;
 
 // pre-bake everything in the background, a few sprites per slice, so playback is smooth
 const queue = [];
-for (const sh of [small, hero]) for (const a of ['walk', 'attack', 'idle']) for (let d = 0; d < 8; d++) for (let f = 0; f < FRAMES[a]; f++) queue.push([sh, a, d, f]);
+for (const sh of [SH.smallPbr, SH.heroPbr, SH.smallFlat, SH.heroFlat]) for (const a of ['walk', 'attack', 'idle']) for (let d = 0; d < 8; d++) for (let f = 0; f < FRAMES[a]; f++) queue.push([sh, a, d, f]);
+for (const sh of [SH.closePbr, SH.closeFlat]) for (let d = 0; d < 8; d++) queue.push([sh, 'idle', d, 0]);
 function warm() {
   const t0 = performance.now();
   while (queue.length && performance.now() - t0 < 12) { const [sh, a, d, f] = queue.shift(); sh.get(a, d, f); }
@@ -42,23 +50,33 @@ function warm() {
 setTimeout(warm, 300);
 
 /* ---------- canvases */
-const HERO_W = 150, HERO_H = 150, HERO_AX = 75, HERO_AY = 118; // logical, before zoom
+const HERO_W = 100, HERO_H = 110;
 function setup(cv, w, h) {
   cv.width = Math.round(w * DPR); cv.height = Math.round(h * DPR);
   cv.style.aspectRatio = `${w} / ${h}`;
   return cv.getContext('2d');
 }
-const heroOld = setup(document.getElementById('heroOld'), HERO_W * HERO_ZOOM / 1.5, HERO_H * HERO_ZOOM / 1.5);
-const heroNew = setup(document.getElementById('heroNew'), HERO_W * HERO_ZOOM / 1.5, HERO_H * HERO_ZOOM / 1.5);
+const heroes = [
+  [setup(document.getElementById('heroOld'), HERO_W * HERO_ZOOM, HERO_H * HERO_ZOOM), null],
+  [setup(document.getElementById('heroFlat'), HERO_W * HERO_ZOOM, HERO_H * HERO_ZOOM), SH.heroFlat],
+  [setup(document.getElementById('heroPbr'), HERO_W * HERO_ZOOM, HERO_H * HERO_ZOOM), SH.heroPbr],
+];
+const CROP = { x0: -30, x1: 30, y0: -84, y1: -30 };
+const closes = [
+  [setup(document.getElementById('closeFlat'), (CROP.x1 - CROP.x0) * CLOSE_ZOOM, (CROP.y1 - CROP.y0) * CLOSE_ZOOM), SH.closeFlat],
+  [setup(document.getElementById('closePbr'), (CROP.x1 - CROP.x0) * CLOSE_ZOOM, (CROP.y1 - CROP.y0) * CLOSE_ZOOM), SH.closePbr],
+];
 
 const CELL_W = 92, CELL_H = 104, CELL_AY = 86;
 const grid = document.getElementById('grid');
-const cells = { old: [], neu: [] };
+const rows = [['old', 'Current', null], ['flat', '3D flat (v1)', SH.smallFlat], ['pbr', '3D PBR', SH.smallPbr]];
+const cells = {};
 {
   const head = grid.insertRow();
   head.appendChild(document.createElement('th'));
   for (const n of DIR_NAMES) { const th = document.createElement('th'); th.textContent = n; head.appendChild(th); }
-  for (const [k, label] of [['old', 'Current'], ['neu', '3D baked']]) {
+  for (const [k, label] of rows) {
+    cells[k] = [];
     const tr = grid.insertRow();
     const th = document.createElement('th'); th.className = 'row'; th.textContent = label; tr.appendChild(th);
     for (let d = 0; d < 8; d++) {
@@ -115,23 +133,35 @@ function drawNew(c, sh, ax, ay, dir) {
   c.drawImage(spr, Math.round(ax - BOX.ax * px), Math.round(ay - BOX.ay * px));
 }
 
+function drawClose(c, sh, dir) {
+  const w = c.canvas.width, h = c.canvas.height;
+  const g = c.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#1d1a20'); g.addColorStop(1, '#0f0d11');
+  c.fillStyle = g; c.fillRect(0, 0, w, h);
+  const spr = sh.get('idle', dir, 0);
+  const px = sh.scale * DPR;
+  c.drawImage(spr, (BOX.ax + CROP.x0) * px, (BOX.ay + CROP.y0) * px, (CROP.x1 - CROP.x0) * px, (CROP.y1 - CROP.y0) * px, 0, 0, w, h);
+}
+
 let last = performance.now();
 function tick(now) {
   state.t += Math.max(0, (now - last) / 1000) * state.speed;
   last = now;
   const d = dirNow();
-  for (const [c, isNew] of [[heroOld, false], [heroNew, true]]) {
+  for (const [c, sh] of heroes) {
     const w = c.canvas.width, h = c.canvas.height;
-    const ax = w / 2, ay = h * 0.8;
+    const ax = w / 2, ay = h * 0.84;
     floor(c, w, h, ax, ay, HERO_ZOOM * DPR);
-    if (isNew) drawNew(c, hero, ax, ay, d); else drawOld(c, HERO_ZOOM, ax, ay, d);
+    if (sh) drawNew(c, sh, ax, ay, d); else drawOld(c, HERO_ZOOM, ax, ay, d);
   }
+  for (const [c, sh] of closes) drawClose(c, sh, d);
   for (let k = 0; k < 8; k++) {
-    for (const [c, isNew] of [[cells.old[k], false], [cells.neu[k], true]]) {
+    for (const [key, , sh] of rows) {
+      const c = cells[key][k];
       const w = c.canvas.width, h = c.canvas.height;
       const ax = w / 2, ay = CELL_AY * GRID_ZOOM * DPR;
       floor(c, w, h, ax, ay, GRID_ZOOM * DPR);
-      if (isNew) drawNew(c, small, ax, ay, k); else drawOld(c, GRID_ZOOM, ax, ay, k);
+      if (sh) drawNew(c, sh, ax, ay, k); else drawOld(c, GRID_ZOOM, ax, ay, k);
     }
   }
   showStats();

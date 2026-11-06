@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 (async () => {
   const [,, out, setJson, clip] = process.argv;
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const p = await b.newPage({ viewport: { width: 1180, height: 1100 }, deviceScaleFactor: 1 });
+  const p = await b.newPage({ viewport: { width: 1180, height: 1500 }, deviceScaleFactor: 1 });
   const logs = [];
   p.on('console', m => logs.push(m.type() + ': ' + m.text()));
   p.on('pageerror', e => logs.push('ERR ' + e.message));

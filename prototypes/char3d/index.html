@@ -31,7 +31,8 @@
   .seg button + button { border-left: 1px solid var(--line); }
   .seg button[aria-pressed="true"] { background: #2a2431; color: var(--text); }
   .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
-  .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .hero { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+  .close { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-width: 0; }
   .card h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
   .card h3 span { color: var(--muted); font-weight: 400; }
@@ -46,13 +47,15 @@
   .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
   .notes .card p { margin: 0; color: var(--muted); }
   .notes .card b { color: var(--text); }
-  @media (max-width: 720px) { .hero { grid-template-columns: 1fr; } .stats { margin-left: 0; width: 100%; } }
+  @media (max-width: 720px) { .hero, .close { grid-template-columns: 1fr; } .stats { margin-left: 0; width: 100%; } }
+  .credit { color: var(--muted); font-size: 12px; margin-top: 18px; }
+  .credit a { color: var(--accent); }
 </style>
 </head>
 <body>
 <main>
-  <h1>Warden: current puppet vs 3D baked</h1>
-  <p class="lede">Same class, same look data, same camera angle and light direction. Left is the current 2D projected puppet. Right is a 3D model built entirely in code (three.js), rigged and animated procedurally, then baked to 2D sprites when the page loads. The game would still blit 2D sprites, so runtime cost is unchanged.</p>
+  <h1>Warden: puppet vs 3D flat vs 3D PBR</h1>
+  <p class="lede">Same class, same look data, same camera angle and light direction. Left is the current 2D projected puppet. The middle is the first 3D prototype with plain, uniform materials. The right is the same 3D model with PBR materials: scanned metal, leather and wool texture maps, worn rolled plate edges, dirt and shadow where parts meet, and a dim torch-lit dungeon reflected in the metal. All 3D versions are built in code and baked to 2D sprites at load.</p>
 
   <div class="bar">
     <span class="lbl">Anim</span>
@@ -65,19 +68,27 @@
   </div>
 
   <div class="hero">
-    <div class="card"><h3>Current puppet <span id="oldInfo">8 walk / 8 attack frames</span></h3><canvas id="heroOld"></canvas></div>
-    <div class="card"><h3>3D baked <span id="newInfo"></span></h3><canvas id="heroNew"></canvas></div>
+    <div class="card"><h3>Current puppet <span>8 / 8 frames</span></h3><canvas id="heroOld"></canvas></div>
+    <div class="card"><h3>3D flat (v1) <span>16 / 14 frames</span></h3><canvas id="heroFlat"></canvas></div>
+    <div class="card"><h3>3D PBR <span>16 / 14 frames</span></h3><canvas id="heroPbr"></canvas></div>
+  </div>
+
+  <h2>Close-up: materials</h2>
+  <div class="close">
+    <div class="card"><h3>3D flat (v1) <span>one colour and gloss per part</span></h3><canvas id="closeFlat"></canvas></div>
+    <div class="card"><h3>3D PBR <span>texture maps, edge wear, grime</span></h3><canvas id="closePbr"></canvas></div>
   </div>
 
   <h2>All 8 directions at game size</h2>
   <div class="grid"><table id="grid"></table></div>
 
-  <h2>What changed</h2>
+  <h2>What changed in the PBR pass</h2>
   <div class="notes">
-    <div class="card"><p><b>Real lighting.</b> One warm key light from the upper left (where the game's light comes from), a cool rim from behind, and image-based reflections on the metal. Plate gets real specular highlights and soft self-shadows instead of painted gradients.</p></div>
-    <div class="card"><p><b>Real anatomy and motion.</b> Legs use two-bone IK with heel strike and toe-off. The pelvis bobs, rolls and twists against the shoulders. The cloak is a mesh driven by a travelling wave. The attack is keyframed: wind-up, strike, follow-through.</p></div>
-    <div class="card"><p><b>Same pipeline cost.</b> Everything is generated from the class's look data at load, so there are no model files or art assets. Bake time is shown above. More frames per animation cost only memory.</p></div>
+    <div class="card"><p><b>Texture maps.</b> Scanned CC0 sets (worn and scratched metal, leather, wool) were reduced to grey detail, roughness and normal maps, then tinted by the class colours, so any theme can reuse them. Hand-beaten dents were added to the metal normals. Box projection maps them onto parts that have no texture coordinates.</p></div>
+    <div class="card"><p><b>Wear and grime.</b> Plate edges are rolled, rubbed and more polished. About twenty spheres follow the skeleton and shade every pixel. Where parts crowd together (under pauldrons, inside the arms, between the legs, at the feet), the surface gets darker, dirtier and less metallic, in any pose.</p></div>
+    <div class="card"><p><b>Moody reflections.</b> The metal reflects a dim stone room with torch hot-spots that match the key light, instead of a white studio. The cloak is wool with a soft fabric sheen and a dirty, frayed hem.</p></div>
   </div>
+  <p class="credit">Texture scans from <a href="https://ambientcg.com" target="_blank" rel="noopener">ambientCG</a> (CC0): Metal038, Metal054A, Leather037, Fabric031.</p>
 </main>
 <script type="module" src="./main.js"></script>
 </body>
