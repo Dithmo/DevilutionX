@@ -25,12 +25,18 @@
  *               'dagger'|'blade'|'claws'|'pistol'|'gun'|'rifle'|'bow'|'none'
  *               (item glyph names blade/axe/mace/bow/gun/staff/wand are accepted too)
  *   offhand     'shield'|'buckler'|'pistol'|'dagger'|'orb'|'none'
- *   helm        'full'|'visor'|'open'|'hood'|'horned'|'crest'|'bare'
+ *   helm        'full'|'visor'|'open'|'hood'|'horned'|'crest'|'bare'|'mask'|'goggles'
+ *               (mask = respirator + goggles, goggles = open face with goggles; the 2D puppet
+ *               draws them as visor / open)
  *   armor       'plate'|'light'|'cloth'|'none'  (none = bare hide in bodyColor)
  *   cloak       'none'|'short'|'long'|'tattered'
  *   glow        true (= trimColor) or a colour: emissive trim, visor, eyes, energy edges
- *   cloakColor, metalColor (weapons), skinColor, accentColor (buckles, studs, horns), underColor
+ *   cloakColor, metalColor (weapons), skinColor, accentColor (buckles, studs, horns), underColor,
+ *   hairColor (3D tech heads)
  *   legs        crawler leg count (4|6|8)       wings  flier: 'membrane'|'rotor'
+ *   style       'classic' (forged metal, leather, wool) | 'tech' (hard-shell polymer, gunmetal,
+ *               techwear, light strips; sci-fi weapons and helmets). 3D renderer only.
+ *               setLookDefaults({ style }) sets it for every look (theme meta.lookDefaults).
  * Missing fields default per silhouette (DEFAULTS below).
  * opts: { dir 0..7, frame, anim:'stand'|'walk'|'attack'|'cast'|'hit'|'death', light, scale }
  * Glows are registered only for world draws (callers that pass opts.light).
@@ -96,7 +102,14 @@ for (const b of Object.values(BUILDS)) { b.thigh = (b.hipZ - 2.2) * 0.515; b.shi
 /** Non-humanoids are authored small; this brings them up to the heroes' scale. */
 export const SPECIAL_SCALE = { crawler: 1.3, flier: 1.4, blob: 1.45, turret: 1.4 };
 
-const resolvedLooks = new WeakMap();
+let resolvedLooks = new WeakMap();
+let LOOK_DEFAULTS = {};
+
+/** Theme-wide defaults under every look (e.g. { style: 'tech' }); call before the first draw. */
+export function setLookDefaults(d) {
+  LOOK_DEFAULTS = { ...(d || {}) };
+  resolvedLooks = new WeakMap();
+}
 let pendingGlows = null;
 
 export function frameKey(anim, frame) {
@@ -123,6 +136,7 @@ export function resolveLook(look) {
   weapon = WEAPON_ALIAS[weapon] || weapon;
   r = {
     sil,
+    style: look.style || LOOK_DEFAULTS.style || 'classic',
     body,
     trim,
     glow,
@@ -140,8 +154,8 @@ export function resolveLook(look) {
     cloakC: look.cloakColor || mix(trim, '#0d0b0f', 0.55),
     accent: look.accentColor || light(trim, 0.2),
   };
-  r.key = [sil, body, trim, glow, armor, weapon, r.offhand, r.helm, r.cloak, r.legs, r.wings,
-    look.metalColor, look.skinColor, look.cloakColor, look.accentColor, look.underColor].join('|');
+  r.key = [sil, r.style, body, trim, glow, armor, weapon, r.offhand, r.helm, r.cloak, r.legs, r.wings,
+    look.metalColor, look.skinColor, look.cloakColor, look.accentColor, look.underColor, look.hairColor].join('|');
   resolvedLooks.set(look, r);
   return r;
 }
@@ -1068,7 +1082,7 @@ function drawHead(g, X, B, hc, hu, U, P) {
   const r = B.head;
   const c = proj(V, hc);
   const fy = V.F[1];
-  const helm = L.helm;
+  const helm = L.helm === 'mask' ? 'visor' : (L.helm === 'goggles' ? 'open' : L.helm);
   const plateC = L.armor === 'none' ? L.skin : L.body;
   const eyeC = L.glow || null;
   // face-forward decal helper: origin on the face surface

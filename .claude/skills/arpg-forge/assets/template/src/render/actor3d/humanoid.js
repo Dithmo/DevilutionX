@@ -32,6 +32,8 @@ export function buildHumanoid(L, M) {
   const plate = L.armor === 'plate';
   const leathers = L.armor === 'light';
   const bare = L.armor === 'none';
+  const tech = L.style === 'tech'; // sci-fi kit: see header of techHead / buildWeapon
+  const bareLegs = bare && !tech; // tech brutes wear trousers and boots
   const up = B.shZ - B.waistZ;
   const root = new THREE.Group();
   let uvSeed = 1;
@@ -74,17 +76,42 @@ export function buildHumanoid(L, M) {
     rim(torsoG, lathePoints(rw * 0.99, -3.5, zs), 0.38);
     mesh(faceted(lathe([[rw * 1.04, -3.1], [rw * 1.09, 0.6], [lerp(rw, rc, 0.4) * 1.07, up * 0.26]], 18, zs, -PI * 0.33, PI * 0.66)), M.steel, torsoG);
     rim(torsoG, lathePoints(lerp(rw, rc, 0.4) * 1.07, up * 0.26, zs, -PI * 0.33, PI * 0.66, 18), 0.28);
-    for (const rx of [-0.42, 0.42]) mesh(new THREE.SphereGeometry(0.5, 8, 6), M.brass, torsoG, rx * rw, up * 0.12, rw * zs * 1.12);
-    // gorget
-    mesh(lathe([[rc * 0.56, up * 0.86], [rc * 0.52, up * 0.98], [rc * 0.36, up * 1.08], [rc * 0.34, up * 1.14]], 18, 0.85), M.steel, torsoG);
-    rim(torsoG, lathePoints(rc * 0.345, up * 1.14, 0.85), 0.26);
-    rim(torsoG, lathePoints(rc * 0.565, up * 0.86, 0.85), 0.28);
+    if (tech) {
+      // chest core light and two light strips down the front of the shell
+      mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.8, 6).rotateX(PI / 2), M.edge, torsoG, 0, up * 0.6, rc * zs + 1.1);
+      mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.5, 6).rotateX(PI / 2), M.neon, torsoG, 0, up * 0.6, rc * zs + 1.5);
+      for (const sx of [1, -1]) {
+        const st = mesh(new THREE.BoxGeometry(0.4, up * 0.42, 0.4), M.neon, torsoG, sx * rc * 0.55, up * 0.42, rc * zs * 0.8 + 0.2);
+        st.rotation.y = sx * 0.6;
+      }
+      // sealed collar
+      mesh(lathe([[rc * 0.56, up * 0.86], [rc * 0.5, up * 0.98], [rc * 0.4, up * 1.1], [rc * 0.4, up * 1.2]], 18, 0.85), M.edge, torsoG);
+      rim(torsoG, lathePoints(rc * 0.41, up * 1.2, 0.85), 0.24, M.neon);
+    } else {
+      for (const rx of [-0.42, 0.42]) mesh(new THREE.SphereGeometry(0.5, 8, 6), M.brass, torsoG, rx * rw, up * 0.12, rw * zs * 1.12);
+      // gorget
+      mesh(lathe([[rc * 0.56, up * 0.86], [rc * 0.52, up * 0.98], [rc * 0.36, up * 1.08], [rc * 0.34, up * 1.14]], 18, 0.85), M.steel, torsoG);
+      rim(torsoG, lathePoints(rc * 0.345, up * 1.14, 0.85), 0.26);
+      rim(torsoG, lathePoints(rc * 0.565, up * 0.86, 0.85), 0.28);
+    }
     for (const sx of [1, -1]) mesh(new THREE.BoxGeometry(2, 0.7, rc * zs * 1.8), M.leather, torsoG, sx * rc * 0.6, up * 0.94, 0);
   } else if (leathers) {
     mesh(lathe(torsoProf(0.97, 0.3), 26, zs), M.jerkin, torsoG);
     mesh(new THREE.TorusGeometry(rc * 0.42, 0.7, 6, 20).rotateX(PI / 2).scale(1, 1, 0.85), M.leather, torsoG, 0, up * 1.0, 0);
+    if (tech) {
+      // tactical vest: magazine pouches, a radio on the chest, a light strip
+      const zf = lerp(rw, rc, 0.5) * zs + 0.6;
+      for (let k = -1; k <= 1; k++) {
+        const pch = mesh(new THREE.BoxGeometry(2.3, 3.4, 1.5), M.leather, torsoG, k * rc * 0.36, up * 0.34, zf);
+        pch.rotation.y = k * 0.35;
+        mesh(new THREE.BoxGeometry(2.4, 0.7, 1.6), M.dark, pch, 0, 1.5, 0.05);
+      }
+      mesh(new THREE.BoxGeometry(1.8, 2.6, 1.2), M.dark, torsoG, rc * 0.42, up * 0.7, rc * zs * 0.82 + 0.4).rotation.y = 0.5;
+      mesh(new THREE.BoxGeometry(0.3, 0.5, 0.3), M.neon, torsoG, rc * 0.42, up * 0.82, rc * zs * 0.82 + 1.0);
+      mesh(new THREE.BoxGeometry(0.35, up * 0.5, 0.35), M.neon, torsoG, -rc * 0.6, up * 0.5, rc * zs * 0.72 + 0.25).rotation.y = -0.65;
+    }
     // studs in rows on the chest and back
-    for (let r = 0; r < 3; r++) for (let k = -2; k <= 2; k++) {
+    if (!tech) for (let r = 0; r < 3; r++) for (let k = -2; k <= 2; k++) {
       const y = up * (0.2 + r * 0.2);
       const t = (y / up);
       const rr = lerp(rw, rc, clamp01(t / 0.58)) * 0.97 + 0.35;
@@ -109,12 +136,29 @@ export function buildHumanoid(L, M) {
     }
     ch.computeVertexNormals();
     mesh(ch, M.hide, torsoG);
+    if (tech) {
+      for (let i = 0; i < 4; i++) {
+        mesh(new THREE.BoxGeometry(2.0, 1.4, 1.2), M.steel, torsoG, 0, up * (0.25 + i * 0.2), -rc * zs * 0.95 - 0.3);
+        mesh(new THREE.BoxGeometry(0.6, 0.4, 0.4), M.neon, torsoG, 0, up * (0.25 + i * 0.2), -rc * zs * 0.95 - 0.95);
+      }
+      // harness strap
+      mesh(new THREE.BoxGeometry(1.4, up * 1.15, 0.5).rotateZ(-0.55), M.leather, torsoG, 0, up * 0.5, rc * zs * 0.98 + 0.9);
+    }
   } else {
     // cloth tunic (and the robe's upper body)
     mesh(lathe(torsoProf(robe ? 1.02 : 1.0, robe ? 0.8 : 0.4), 26, zs), M.cloth, torsoG);
     // collar / stole down the front
-    mesh(new THREE.TorusGeometry(rc * 0.44, 0.65, 6, 20).rotateX(PI / 2).scale(1, 1, 0.9), M.trimCloth, torsoG, 0, up * 0.99, 0);
-    if (robe) mesh(lathe(torsoProf(1.05, 0.9).slice(1), 4, zs, -0.22, 0.44), M.trimCloth, torsoG);
+    if (tech) {
+      mesh(lathe([[rc * 0.5, up * 0.9], [rc * 0.47, up * 1.05], [rc * 0.46, up * 1.2]], 20, 0.9, PI * 0.18, PI * 1.64), M.trimCloth, torsoG);
+      rim(torsoG, lathePoints(rc * 0.47, up * 1.2, 0.9, PI * 0.18, PI * 1.64, 20), 0.22, M.neon);
+      // asymmetric light seam across the chest
+      const sm = mesh(new THREE.BoxGeometry(0.35, up * 0.7, 0.35), M.neon, torsoG, rc * 0.2, up * 0.55, rc * zs * 0.98 + 0.5);
+      sm.rotation.z = -0.5;
+      if (robe) mesh(lathe(torsoProf(1.05, 0.9).slice(1), 4, zs, -0.08, 0.16), M.dark, torsoG);
+    } else {
+      mesh(new THREE.TorusGeometry(rc * 0.44, 0.65, 6, 20).rotateX(PI / 2).scale(1, 1, 0.9), M.trimCloth, torsoG, 0, up * 0.99, 0);
+      if (robe) mesh(lathe(torsoProf(1.05, 0.9).slice(1), 4, zs, -0.22, 0.44), M.trimCloth, torsoG);
+    }
   }
   // hood mantle over the shoulders
   if (L.helm === 'hood') {
@@ -124,10 +168,14 @@ export function buildHumanoid(L, M) {
   /* ------------------------------------------------ pelvis, belt, fauld */
   const hipH = B.waistZ - B.hipZ; // waist above the hip joints
   const hipR = (B.hipW + B.legR[0]) * 0.98;
-  mesh(lathe([[0.1, -4.5], [hipR * 0.8, -4.2], [hipR, -1.5], [rw * 1.02, hipH * 0.6], [rw, hipH + 0.5]], 20, zs), plate ? M.mail : (bare ? M.hide : M.under), pelvisG);
+  mesh(lathe([[0.1, -4.5], [hipR * 0.8, -4.2], [hipR, -1.5], [rw * 1.02, hipH * 0.6], [rw, hipH + 0.5]], 20, zs), plate ? M.mail : (bareLegs ? M.hide : M.under), pelvisG);
   if (!robe) {
     mesh(new THREE.TorusGeometry(rw * 1.04, 0.95, 8, 24).rotateX(PI / 2).scale(1, 1, zs * 1.04), M.leather, pelvisG, 0, hipH + 0.2, 0);
-    mesh(new THREE.BoxGeometry(2.4, 2.2, 1), M.brass, pelvisG, 0, hipH + 0.2, rw * zs * 1.05 + 0.6);
+    mesh(new THREE.BoxGeometry(2.4, 2.2, 1), tech ? M.dark : M.brass, pelvisG, 0, hipH + 0.2, rw * zs * 1.05 + 0.6);
+    if (tech) {
+      mesh(new THREE.BoxGeometry(1.4, 0.5, 0.4), M.neon, pelvisG, 0, hipH + 0.2, rw * zs * 1.05 + 1.15);
+      for (const sx of [1, -1]) mesh(new THREE.BoxGeometry(1.6, 3.2, 2.6), M.leather, pelvisG, sx * rw * 1.08, hipH - 1.6, 0.4);
+    }
   } else {
     mesh(new THREE.TorusGeometry(rw * 1.12, 0.6, 6, 22).rotateX(PI / 2).scale(1, 1, zs * 1.04), M.trimCloth, pelvisG, 0, hipH + 0.2, 0);
   }
@@ -137,7 +185,7 @@ export function buildHumanoid(L, M) {
       const r0 = rw * 1.07 + i * 0.55;
       mesh(faceted(lathe([[r0, y], [r0 + 0.6, y - 2.6]], 20, zs * 1.04, -PI * 0.42, PI * 0.84)), i % 2 ? M.steel : M.plate, pelvisG);
       rim(pelvisG, lathePoints(r0 + 0.62, y - 2.6, zs * 1.04, -PI * 0.42, PI * 0.84, 20), 0.28);
-      for (const ph of [-0.3 * PI, 0, 0.3 * PI]) {
+      if (!tech) for (const ph of [-0.3 * PI, 0, 0.3 * PI]) {
         const rr = r0 + 0.45;
         mesh(new THREE.SphereGeometry(0.4, 6, 5), M.brass, pelvisG, rr * Math.sin(ph), y - 1.0, rr * Math.cos(ph) * zs * 1.04 + 0.15);
       }
@@ -151,7 +199,7 @@ export function buildHumanoid(L, M) {
   } else if (L.armor === 'cloth' && !robe) {
     mesh(cone(10, rw * 1.06, hipR * 1.4, 20, zs * 1.1), M.cloth, pelvisG, 0, hipH, 0);
     mesh(new THREE.TorusGeometry(hipR * 1.38, 0.4, 5, 22).rotateX(PI / 2).scale(1, 1, zs * 1.1), M.trimCloth, pelvisG, 0, hipH - 10, 0);
-  } else if (bare) {
+  } else if (bareLegs) {
     for (const [z, rot] of [[rw * zs + 0.4, -0.08], [-rw * zs - 0.4, 0.08]]) {
       const flap = mesh(new THREE.BoxGeometry(5.5, 9, 0.5), M.trimCloth, pelvisG, 0, hipH - 4.5, z);
       flap.rotation.x = rot;
@@ -170,10 +218,11 @@ export function buildHumanoid(L, M) {
       mesh(ellipsoid(lr0 * 0.62, lr0 * 0.6, lr0 * 0.5, 12, 9), M.steel, sh, 0, 0.3, lr0 * 0.55);
       mesh(new THREE.ConeGeometry(lr0 * 0.55, 1.1, 10).rotateX(PI / 2).scale(1.4, 1, 1), M.steel, sh, 0, 0.3, lr0 * 0.75);
       mesh(limb(B.shin, lr1 * 1.08, lr1 * 0.82), M.plate, sh);
-      mesh(new THREE.TorusGeometry(lr1 * 1.03, 0.4, 5, 16).rotateX(PI / 2), M.leather, sh, 0, -B.shin * 0.25, 0);
+      mesh(new THREE.TorusGeometry(lr1 * 1.03, tech ? 0.25 : 0.4, 5, 16).rotateX(PI / 2), tech ? M.neon : M.leather, sh, 0, -B.shin * 0.25, 0);
     } else {
-      mesh(limb(B.thigh, lr0, lr0 * 0.82), bare ? M.hide : M.under, th);
-      if (bare) mesh(limb(B.shin, lr1, lr1 * 0.75), M.hide, sh);
+      mesh(limb(B.thigh, lr0, lr0 * 0.82), bareLegs ? M.hide : M.under, th);
+      if (tech && !bareLegs) mesh(ellipsoid(lr0 * 0.6, lr0 * 0.62, lr0 * 0.42, 10, 8), M.edge, sh, 0, 0.2, lr0 * 0.6);
+      if (bareLegs) mesh(limb(B.shin, lr1, lr1 * 0.75), M.hide, sh);
       else {
         const bootTop = leathers ? 0.2 : 0.55;
         mesh(limb(B.shin, lr1, lr1 * 0.78), M.under, sh);
@@ -183,12 +232,17 @@ export function buildHumanoid(L, M) {
     }
     // foot: origin at the ankle, sole at y = -2.2
     const fs = lr1 / 3.3;
-    if (plate) {
+    if (tech && !bareLegs) {
+      // chunky boots with a moulded sole and a heel light
+      mesh(ellipsoid(2.5 * fs, 2.0, 4.1 * fs, 14, 9), plate ? M.plate : M.leather, ft, 0, -0.7, 1.4);
+      mesh(new THREE.BoxGeometry(4.8 * fs, 1.0, 8.8 * fs), M.dark, ft, 0, -1.8, 1.6);
+      mesh(new THREE.BoxGeometry(3.0 * fs, 0.35, 0.3), M.neon, ft, 0, -1.6, 1.6 - 4.4 * fs);
+    } else if (plate) {
       mesh(ellipsoid(2.6 * fs, 2.0, 4.0 * fs, 14, 9), M.steel, ft, 0, -0.6, 1.4);
       mesh(new THREE.SphereGeometry(1, 12, 7, 0, TAU, 0, PI / 2).scale(2.1 * fs, 1.4, 2.4 * fs), M.steel, ft, 0, -1.2, 4.3 * fs);
       for (let k = 0; k < 3; k++) mesh(new THREE.TorusGeometry(2.3 * fs - k * 0.25, 0.22, 4, 12, PI).rotateY(PI / 2).rotateZ(PI / 2), M.dark, ft, 0, -0.5 - k * 0.2, 2.0 + k * 1.1);
       mesh(new THREE.BoxGeometry(4.8 * fs, 0.7, 8.4 * fs), M.leather, ft, 0, -1.95, 1.6);
-    } else if (bare) {
+    } else if (bareLegs) {
       mesh(ellipsoid(2.2 * fs, 1.5, 3.6 * fs, 12, 8), M.hide, ft, 0, -1.0, 1.6);
       for (const tx of [-1, 0, 1]) mesh(taperTube([V3(tx * 1.1 * fs, -1.2, 4.4 * fs), V3(tx * 1.3 * fs, -1.6, 5.8 * fs), V3(tx * 1.4 * fs, -2.2, 6.6 * fs)], 0.45, 0.05, 5, 5), M.bone, ft);
     } else {
@@ -262,6 +316,21 @@ export function buildHumanoid(L, M) {
       mesh(new THREE.ConeGeometry(ar0 * 0.66, 1.2, 10).rotateX(-PI / 2), M.plate, fa, 0, 0, -ar0 * 0.55);
       mesh(limb(B.arm[1], ar1 * 1.03, ar1 * 0.84), M.plate, fa);
       mesh(lathe([[ar1 * 0.9, -B.arm[1] * 0.62], [ar1 * 1.25, -B.arm[1] * 0.83], [ar1 * 1.03, -B.arm[1] * 0.9]], 14), M.steel, fa);
+      if (tech) mesh(new THREE.TorusGeometry(ar1 * 1.15, 0.22, 4, 14).rotateX(PI / 2), M.neon, fa, 0, -B.arm[1] * 0.72, 0);
+    } else if (bare && tech) {
+      // cybernetic forearms: gunmetal limb, piston, light at the wrist and the shoulder socket
+      mesh(limb(B.arm[0], ar0 * 1.1, ar0 * 0.85), M.hide, ua);
+      mesh(new THREE.TorusGeometry(ar0 * 1.0, 0.3, 5, 14).rotateX(PI / 2), M.steel, ua, 0, -B.arm[0] * 0.75, 0);
+      mesh(limb(B.arm[1], ar1 * 1.12, ar1 * 0.88), M.steel, fa);
+      mesh(new THREE.CylinderGeometry(0.4, 0.4, B.arm[1] * 0.7, 6), M.dark, fa, ar1 * 0.7, -B.arm[1] * 0.45, -ar1 * 0.5);
+      mesh(new THREE.TorusGeometry(ar1 * 0.95, 0.22, 4, 14).rotateX(PI / 2), M.neon, fa, 0, -B.arm[1] * 0.85, 0);
+      mesh(new THREE.TorusGeometry(ar1 * 1.05, 0.18, 4, 14).rotateX(PI / 2), M.neon, fa, 0, -B.arm[1] * 0.3, 0);
+    } else if (robe && tech) {
+      // techwear sleeves: fitted, a cuff with a light line
+      mesh(limb(B.arm[0] + 0.5, ar0 * 1.15, ar0 * 0.95), M.cloth, ua, 0, 0.5, 0);
+      mesh(limb(B.arm[1], ar1 * 1.2, ar1 * 1.0), M.cloth, fa);
+      mesh(lathe([[ar1 * 1.25, -B.arm[1] * 0.55], [ar1 * 1.35, -B.arm[1] * 0.8], [ar1 * 1.15, -B.arm[1] * 0.92]], 12), M.dark, fa);
+      mesh(new THREE.TorusGeometry(ar1 * 1.32, 0.2, 4, 14).rotateX(PI / 2), M.neon, fa, 0, -B.arm[1] * 0.68, 0);
     } else if (robe) {
       mesh(cone(B.arm[0] + 1, ar0 * 1.15, ar0 * 1.55, 14), M.cloth, ua, 0, 0.6, 0);
       mesh(limb(B.arm[1], ar1, ar1 * 0.8), M.skin, fa);
@@ -274,7 +343,7 @@ export function buildHumanoid(L, M) {
       if (leathers) mesh(lathe([[ar1 * 1.12, -B.arm[1] * 0.35], [ar1 * 1.15, -B.arm[1] * 0.6], [ar1 * 1.0, -B.arm[1] * 0.92]], 12), M.leather, fa);
     }
     // fist: origin at the grip point, -Y runs along the forearm
-    const fistM = plate ? M.steel : (leathers ? M.leather : (bare ? M.hide : M.skin));
+    const fistM = plate ? M.steel : (leathers ? M.leather : (bare ? (tech ? M.steel : M.hide) : (tech ? M.leather : M.skin)));
     mesh(ellipsoid(ar1 * 0.68, ar1 * 0.78, ar1 * 0.74, 12, 9), fistM, hd, 0, 0.2, 0);
     if (plate) for (let k = 0; k < 4; k++) mesh(new THREE.BoxGeometry(0.8, 0.8, 1.3), M.dark, hd, 0, -0.9 + k * 0.7, ar1 * 0.5);
   }
@@ -288,17 +357,22 @@ export function buildHumanoid(L, M) {
       pa.position.set(sx * (B.sh - 1.2 * k), up - 1.5 + 1.8 * k, -0.3);
       torsoG.add(pa);
       paul[s] = pa;
-      const n = plate ? 3 : 1;
+      const n = tech ? (plate ? 2 : 1) : (plate ? 3 : 1);
       for (let i = 0; i < n; i++) {
-        const r = (6.4 + i * 0.5) * k;
+        const r = (6.4 + i * 0.5) * k * (tech && !plate ? 0.8 : 1);
         const th = PI * 0.42 + i * 0.05;
-        const g = new THREE.SphereGeometry(r, 16, 9, 0, TAU, 0, th).scale(1, 0.62, 1.02);
+        // tech: hard-edged moulded pads instead of rounded lames
+        const g = tech
+          ? faceted(new THREE.SphereGeometry(r, 7, 3, 0, TAU, 0, th).scale(1, 0.55, 1.02))
+          : new THREE.SphereGeometry(r, 16, 9, 0, TAU, 0, th).scale(1, 0.62, 1.02);
         const m = mesh(g, plate ? (i === 1 ? M.steel : M.plate) : M.leather, pa, sx * (1.2 + i * 0.9) * k, -i * 1.9 * k, 0);
         m.rotation.z = -sx * (0.35 + i * 0.18);
-        if (plate) rim(m, lathePoints(r * Math.sin(th), r * Math.cos(th) * 0.62, 1.02), 0.34);
+        if (tech) {
+          if (i === 0) rim(m, lathePoints(r * Math.sin(th), r * Math.cos(th) * 0.55, 1.02, PI * 0.1, PI * 0.8, 10), 0.24, M.neon);
+        } else if (plate) rim(m, lathePoints(r * Math.sin(th), r * Math.cos(th) * 0.62, 1.02), 0.34);
         else mesh(new THREE.TorusGeometry(r * Math.sin(th), 0.25, 4, 20).rotateX(PI / 2).scale(1, 1, 1.02), glowOn ? M.glow : M.trimCloth, m, 0, r * Math.cos(th) * 0.62, 0);
       }
-      mesh(new THREE.SphereGeometry(0.55, 7, 5), M.brass, pa, sx * 3.4 * k, 0.6 * k, 3.0 * k);
+      if (!tech) mesh(new THREE.SphereGeometry(0.55, 7, 5), M.brass, pa, sx * 3.4 * k, 0.6 * k, 3.0 * k);
     }
   }
 
@@ -309,7 +383,10 @@ export function buildHumanoid(L, M) {
   if (L.cloak !== 'none' && !robe) {
     cloak = mesh(new THREE.PlaneGeometry(1, 1, CW, CH), M.cloak, torsoG);
     cloak.frustumCulled = false;
-    for (const sx of [1, -1]) mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.6, 10).rotateX(PI / 2), M.brass, torsoG, sx * rc * 0.62, up * 0.93, rc * zs * 0.82);
+    if (tech) {
+      // stand-up coat collar, open at the front
+      mesh(lathe([[rc * 0.62, up * 0.86], [rc * 0.6, up * 1.05], [rc * 0.66, up * 1.3]], 22, 0.95, PI * 0.28, PI * 1.44), M.coat, torsoG);
+    } else for (const sx of [1, -1]) mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.6, 10).rotateX(PI / 2), M.brass, torsoG, sx * rc * 0.62, up * 0.93, rc * zs * 0.82);
   }
   function updateCloak(phase, drag, gust) {
     const p = cloak.geometry.attributes.position;
@@ -336,8 +413,11 @@ export function buildHumanoid(L, M) {
 
   /* ------------------------------------------------ head and helm (origin = head centre) */
   const r = B.head;
-  const faceShown = L.helm === 'open' || L.helm === 'bare' || L.helm === 'hood';
-  if (faceShown) {
+  const faceShown = tech
+    ? ['open', 'bare', 'mask', 'goggles'].includes(L.helm)
+    : (L.helm === 'open' || L.helm === 'bare' || L.helm === 'hood');
+  if (tech) techHead(L, M, mesh, rim, headG, r, glowOn);
+  else if (faceShown) {
     const hooded = L.helm === 'hood';
     mesh(ellipsoid(r * 0.9, r * 0.98, r * 0.9, 16, 12), hooded ? M.void : M.skin, headG);
     if (!hooded) {
@@ -349,7 +429,9 @@ export function buildHumanoid(L, M) {
     }
     for (const sx of [1, -1]) mesh(new THREE.SphereGeometry(r * (hooded ? 0.09 : 0.11), 8, 6), hooded && !glowOn ? M.eye : (glowOn ? M.glow : M.void), headG, sx * r * 0.33, r * 0.05, r * 0.8);
   }
-  if (L.helm === 'bare') {
+  if (tech) {
+    // built by techHead
+  } else if (L.helm === 'bare') {
     mesh(new THREE.SphereGeometry(r * 0.96, 16, 10, PI * 0.15, PI * 1.7, 0, PI * 0.55).rotateY(PI), M.hair, headG, 0, r * 0.06, -r * 0.04);
   } else if (L.helm === 'hood') {
     const g = lathe([[r * 0.95, -r * 1.1], [r * 1.25, -r * 0.4], [r * 1.3, r * 0.3], [r * 1.12, r * 0.95], [r * 0.6, r * 1.3], [0.01, r * 1.38]], 22, 1.05, PI * 0.3, PI * 1.4);
@@ -427,7 +509,7 @@ export function buildHumanoid(L, M) {
   }
   // neck
   const neckG = manual(root);
-  mesh(limb(r * 1.2, r * 0.5, r * 0.55, 10), plate && !faceShown ? M.mail : (bare ? M.hide : M.skin), neckG);
+  mesh(limb(r * 1.2, r * 0.5, r * 0.55, 10), (plate || (tech && L.helm === 'hood')) && !faceShown ? M.mail : (bare ? M.hide : M.skin), neckG);
 
   /* ------------------------------------------------ weapons (+Z along the weapon, origin at the grip) */
   const wp = buildWeapon(L.weapon, weaponG, mesh, M, L);
@@ -638,6 +720,149 @@ export function buildHumanoid(L, M) {
   return { root, pose, glows, occ, shadowR: B.sh * 1.35 + 2, B };
 }
 
+/* ======================================================================== tech heads */
+
+/**
+ * style 'tech' heads (origin = head centre, +Z the face):
+ *   visor    ballistic helmet with a wraparound glass visor and ear modules (antenna on one)
+ *   full     sealed helmet, faceplate with a T-shaped light slit and jaw vents
+ *   crest    visor helmet with a light fin;   horned  full helmet with two antennas
+ *   hood     techwear hood over a dark face with an LED band across the eyes
+ *   open     bare face, undercut hair, cyber eye and a headset with a mic boom
+ *   bare     shaved head, cyber eye, light implant lines over the scalp
+ *   mask     respirator with twin filters, goggles, hair;   goggles  bare face with goggles
+ */
+function techHead(L, M, mesh, rim, headG, r, glowOn) {
+  const h = L.helm;
+  const face = ['open', 'bare', 'mask', 'goggles'].includes(h);
+  const neonOr = (fallback) => (glowOn ? M.neon : fallback);
+  if (face || h === 'hood') {
+    const hooded = h === 'hood';
+    mesh(ellipsoid(r * 0.9, r * 0.98, r * 0.9, 16, 12), hooded ? M.void : M.skin, headG);
+    if (!hooded) {
+      mesh(ellipsoid(r * 0.16, r * 0.24, r * 0.2, 8, 6), M.skin, headG, 0, -r * 0.15, r * 0.86);
+      for (const sx of [1, -1]) {
+        mesh(new THREE.BoxGeometry(r * 0.34, r * 0.08, r * 0.12), M.hair, headG, sx * r * 0.34, r * 0.24, r * 0.8);
+        mesh(ellipsoid(r * 0.12, r * 0.18, r * 0.12, 6, 5), M.skin, headG, sx * r * 0.88, 0, 0);
+      }
+      if (h !== 'mask' && h !== 'goggles') {
+        // eyes: one natural, one cybernetic with a steel socket and a temple plate
+        mesh(new THREE.SphereGeometry(r * 0.1, 8, 6), M.void, headG, r * 0.33, r * 0.05, r * 0.8);
+        mesh(new THREE.TorusGeometry(r * 0.15, r * 0.04, 4, 12), M.steel, headG, -r * 0.33, r * 0.05, r * 0.84);
+        mesh(new THREE.SphereGeometry(r * 0.12, 8, 6), M.neon, headG, -r * 0.33, r * 0.05, r * 0.82);
+        mesh(new THREE.BoxGeometry(r * 0.1, r * 0.42, r * 0.36), M.steel, headG, -r * 0.88, r * 0.12, r * 0.28);
+        mesh(new THREE.BoxGeometry(r * 0.06, r * 0.08, r * 0.08), M.neon, headG, -r * 0.94, r * 0.22, r * 0.36);
+      }
+    }
+  }
+  const hairTop = () => {
+    // undercut: hair on top, shaved sides
+    mesh(new THREE.SphereGeometry(r * 0.97, 16, 8, 0, TAU, 0, PI * 0.33), M.hair, headG, 0, r * 0.1, -r * 0.04);
+    mesh(ellipsoid(r * 0.35, r * 0.28, r * 0.9, 10, 6), M.hair, headG, 0, r * 0.82, -r * 0.05);
+  };
+  const goggles = (y) => {
+    for (const sx of [1, -1]) {
+      mesh(new THREE.CylinderGeometry(r * 0.24, r * 0.26, r * 0.28, 14).rotateX(PI / 2), M.dark, headG, sx * r * 0.36, y, r * 0.86);
+      mesh(new THREE.CylinderGeometry(r * 0.19, r * 0.19, r * 0.06, 14).rotateX(PI / 2), M.lens, headG, sx * r * 0.36, y, r * 1.0);
+    }
+    mesh(new THREE.TorusGeometry(r * 0.93, r * 0.06, 4, 24).rotateX(PI / 2), M.leather, headG, 0, y, 0);
+  };
+  const shellHelm = (closed) => {
+    const prof = [[0.01, r * 1.16], [r * 0.6, r * 1.09], [r * 0.96, r * 0.76], [r * 1.09, r * 0.2], [r * 1.09, -r * 0.35], [r * 1.0, -r * 0.85], [r * 0.86, -r * 1.06]];
+    const g = lathe(prof, 28, 1.06, closed ? 0 : PI * 0.42, closed ? TAU : PI * 1.16);
+    mesh(g, M.helm, headG);
+    rim(headG, lathePoints(r * 0.86, -r * 1.06, 1.06, closed ? 0 : PI * 0.42, closed ? TAU : PI * 1.16, 24), 0.3, M.edge);
+    // ridge
+    mesh(new THREE.BoxGeometry(r * 0.22, r * 0.2, r * 1.6), M.edge, headG, 0, r * 1.1, -r * 0.1);
+  };
+  const earModules = (antenna) => {
+    for (const sx of [1, -1]) {
+      mesh(new THREE.CylinderGeometry(r * 0.34, r * 0.34, r * 0.3, 12).rotateZ(PI / 2), M.dark, headG, sx * r * 1.08, -r * 0.05, -r * 0.05);
+      mesh(new THREE.TorusGeometry(r * 0.22, r * 0.05, 4, 14).rotateY(PI / 2), M.neon, headG, sx * r * 1.24, -r * 0.05, -r * 0.05);
+    }
+    if (antenna) {
+      mesh(new THREE.CylinderGeometry(0.15, 0.22, r * 1.4, 5).translate(0, r * 0.7, 0).rotateZ(0.25).rotateX(-0.35), M.steel, headG, r * 1.12, r * 0.1, -r * 0.1);
+      mesh(new THREE.SphereGeometry(0.4, 6, 5), M.neon, headG, r * 1.45, r * 1.38, -r * 0.55);
+    }
+  };
+  if (h === 'visor' || h === 'crest') {
+    shellHelm(true);
+    // wraparound glass visor with a light line through it
+    mesh(lathe([[r * 1.1, -r * 0.24], [r * 1.16, -r * 0.02], [r * 1.12, r * 0.24]], 22, 1.07, -PI * 0.46, PI * 0.92), M.lens, headG, 0, r * 0.04, 0);
+    rim(headG, lathePoints(r * 1.165, r * 0.02, 1.07, -PI * 0.42, PI * 0.84, 18), 0.2, neonOr(M.edge));
+    earModules(h === 'visor');
+    if (h === 'crest') {
+      const sh = new THREE.Shape();
+      const n = 10;
+      for (let i = 0; i <= n; i++) { const a = -PI * 0.3 + (i / n) * PI * 0.85; sh.lineTo(Math.sin(a) * r * 1.12, Math.cos(a) * r * 1.16); }
+      for (let i = n; i >= 0; i--) { const a = -PI * 0.3 + (i / n) * PI * 0.85; sh.lineTo(Math.sin(a) * r * 1.6, Math.cos(a) * r * 1.5 + (i / n) * r * 0.1); }
+      const cg = new THREE.ExtrudeGeometry(sh, { depth: 0.5, bevelEnabled: false, curveSegments: 4 });
+      cg.translate(0, 0, -0.25);
+      cg.rotateY(-PI / 2);
+      mesh(cg, M.neon, headG);
+    }
+  } else if (h === 'full' || h === 'horned') {
+    shellHelm(true);
+    // faceplate and a T-shaped light slit
+    mesh(lathe([[r * 1.0, -r * 0.95], [r * 1.12, -r * 0.4], [r * 1.14, r * 0.1], [r * 1.1, r * 0.42]], 18, 1.08, -PI * 0.4, PI * 0.8), M.edge, headG);
+    mesh(new THREE.BoxGeometry(r * 1.2, r * 0.13, r * 0.12), M.neon, headG, 0, r * 0.12, r * 1.2);
+    mesh(new THREE.BoxGeometry(r * 0.13, r * 0.6, r * 0.12), M.neon, headG, 0, -r * 0.2, r * 1.21);
+    for (const sx of [1, -1]) for (let k = 0; k < 3; k++) mesh(new THREE.BoxGeometry(r * 0.22, r * 0.06, r * 0.2), M.void, headG, sx * r * 0.42, -r * 0.5 - k * r * 0.14, r * 1.07);
+    earModules(false);
+    if (h === 'horned') {
+      for (const sx of [1, -1]) {
+        mesh(taperTube([V3(sx * r * 0.9, r * 0.5, -r * 0.2), V3(sx * r * 1.2, r * 1.3, -r * 0.5), V3(sx * r * 1.35, r * 2.1, -r * 0.9)], r * 0.12, r * 0.04, 6, 8), M.steel, headG);
+        mesh(new THREE.SphereGeometry(r * 0.12, 6, 5), M.neon, headG, sx * r * 1.35, r * 2.12, -r * 0.92);
+      }
+    }
+  } else if (h === 'hood') {
+    const g = lathe([[r * 0.95, -r * 1.1], [r * 1.25, -r * 0.4], [r * 1.3, r * 0.3], [r * 1.12, r * 0.95], [r * 0.6, r * 1.3], [0.01, r * 1.38]], 22, 1.05, PI * 0.3, PI * 1.4);
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const y = p.getY(i); const z = p.getZ(i);
+      if (z < 0 && y > 0) { p.setY(i, y + (-z / r) * (y / r) * r * 0.25); p.setZ(i, z - (y / r) * r * 0.25); }
+    }
+    g.computeVertexNormals();
+    mesh(g, M.hoodCloth, headG);
+    // LED band across the eyes inside the hood, and a light line along the hood edge
+    mesh(lathe([[r * 0.93, -r * 0.03], [r * 0.95, r * 0.14]], 16, 1.0, -PI * 0.3, PI * 0.6), glowOn ? M.neon : M.eye, headG);
+    rim(headG, (() => {
+      const pts = [];
+      for (let i = 0; i <= 16; i++) {
+        const t = i / 16;
+        const a = lerp(-1.25, 1.25, t);
+        pts.push(V3(Math.sin(a) * r * 1.0, lerp(-r * 0.9, r * 0.95, 1 - Math.abs(t - 0.5) * 2), r * 0.9 * Math.cos(a)));
+      }
+      return { pts, closed: false };
+    })(), 0.3, M.trimCloth);
+  } else if (h === 'open') {
+    hairTop();
+    // headset: ear cup and mic boom
+    mesh(new THREE.CylinderGeometry(r * 0.3, r * 0.3, r * 0.25, 12).rotateZ(PI / 2), M.dark, headG, r * 0.98, 0, 0);
+    mesh(new THREE.TorusGeometry(r * 0.2, r * 0.05, 4, 12).rotateY(PI / 2), M.neon, headG, r * 1.12, 0, 0);
+    mesh(taperTube([V3(r * 1.0, -r * 0.1, r * 0.1), V3(r * 0.8, -r * 0.45, r * 0.7), V3(r * 0.3, -r * 0.5, r * 0.95)], r * 0.06, r * 0.05, 5, 8), M.dark, headG);
+    mesh(new THREE.SphereGeometry(r * 0.08, 6, 5), M.neon, headG, r * 0.28, -r * 0.5, r * 0.97);
+  } else if (h === 'bare') {
+    for (const sx of [1, -1]) {
+      for (let k = 0; k < 3; k++) mesh(new THREE.BoxGeometry(r * 0.08, r * 0.06, r * 0.35), M.neon, headG, sx * r * 0.5, r * (0.72 - k * 0.12) + r * 0.1, -r * (0.1 + k * 0.25));
+    }
+  } else if (h === 'mask') {
+    hairTop();
+    goggles(r * 0.08);
+    // respirator: moulded mouthpiece and twin filters
+    mesh(ellipsoid(r * 0.6, r * 0.42, r * 0.45, 14, 10), M.dark, headG, 0, -r * 0.45, r * 0.62);
+    for (const sx of [1, -1]) {
+      const f = mesh(new THREE.CylinderGeometry(r * 0.22, r * 0.22, r * 0.4, 12).rotateX(PI / 2), M.steel, headG, sx * r * 0.5, -r * 0.6, r * 0.88);
+      f.rotation.y = sx * 0.6;
+      mesh(new THREE.TorusGeometry(r * 0.22, r * 0.04, 4, 12), M.neon, f, 0, 0, r * 0.2);
+    }
+    mesh(new THREE.BoxGeometry(r * 0.3, r * 0.12, r * 0.12), M.neon, headG, 0, -r * 0.5, r * 1.06);
+  } else if (h === 'goggles') {
+    hairTop();
+    goggles(r * 0.08);
+  }
+}
+
 /* ======================================================================== weapons */
 
 /**
@@ -648,19 +873,31 @@ function buildWeapon(w, g, mesh, M, L) {
   if (!w || w === 'none') return null;
   const len = weaponLen(w);
   const glowOn = !!L.glow;
-  const haft = M.leather;
+  // tech: carbon hafts, gunmetal fittings, light strips even when the look has no glow
+  const tech = L.style === 'tech';
+  const haft = tech ? M.carbon : M.leather;
   const metal = M.steel;
+  const fit = tech ? M.dark : M.brass;
+  const strip = tech ? M.neon : M.glow;
+  const lit = glowOn || tech;
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const blade = (lenB, width, guard, grip, opts = {}) => {
     mesh(bladeGeom(lenB - 1.5, width, opts.thick || 1.0, opts.curve || 0, !!opts.single), metal, g, 0, 0, 1.5);
-    if (opts.roundGuard) mesh(new THREE.CylinderGeometry(guard, guard, 0.6, 14).rotateX(PI / 2), M.brass, g, 0, 0, 1.1);
-    else {
+    if (opts.roundGuard) mesh(new THREE.CylinderGeometry(guard, guard, 0.6, tech ? 6 : 14).rotateX(PI / 2), fit, g, 0, 0, 1.1);
+    else if (tech) {
+      mesh(new THREE.BoxGeometry(1.6, guard * 1.6, 1.6), fit, g, 0, 0, 1.0);
+      mesh(new THREE.BoxGeometry(0.4, guard * 1.2, 0.4), strip, g, 0.85, 0, 1.0);
+    } else {
       mesh(new THREE.BoxGeometry(1.1, guard * 2, 1.1), M.brass, g, 0, 0, 1.1);
       for (const s of [1, -1]) mesh(new THREE.SphereGeometry(0.7, 6, 5), M.brass, g, 0, s * guard, 1.1);
     }
-    mesh(new THREE.CylinderGeometry(0.7, 0.8, grip, 8).rotateX(PI / 2), M.leather, g, 0, 0, -grip / 2 + 0.4);
-    mesh(new THREE.SphereGeometry(1.1, 10, 8).scale(1, 1, 0.8), M.brass, g, 0, 0, -grip);
-    if (glowOn) for (const s of [1, -1]) mesh(new THREE.BoxGeometry(0.25, 0.3, (lenB - 4) * 0.85), M.glow, g, 0, s * width * 0.42, 2.5 + (lenB - 4) * 0.42);
+    mesh(new THREE.CylinderGeometry(0.7, 0.8, grip, 8).rotateX(PI / 2), tech ? M.dark : M.leather, g, 0, 0, -grip / 2 + 0.4);
+    if (tech) {
+      for (let k = 1; k < 4; k++) mesh(new THREE.TorusGeometry(0.8, 0.14, 4, 10), M.carbon, g, 0, 0, 0.4 - (grip * k) / 4);
+      mesh(new THREE.CylinderGeometry(0.95, 0.8, 1.2, 6).rotateX(PI / 2), M.carbon, g, 0, 0, -grip);
+      mesh(new THREE.TorusGeometry(0.85, 0.16, 4, 10), strip, g, 0, 0, -grip - 0.4);
+    } else mesh(new THREE.SphereGeometry(1.1, 10, 8).scale(1, 1, 0.8), M.brass, g, 0, 0, -grip);
+    if (lit) for (const s of (opts.single ? [1] : [1, -1])) mesh(new THREE.BoxGeometry(0.25, 0.3, (lenB - 4) * 0.85), strip, g, 0, s * width * 0.42, 2.5 + (lenB - 4) * 0.42);
     else mesh(new THREE.BoxGeometry(0.3, width * 0.22, (lenB - 4) * 0.7), M.dark, g, 0, 0, 3 + (lenB - 4) * 0.35);
   };
   let muzzle = null;
@@ -681,10 +918,24 @@ function buildWeapon(w, g, mesh, M, L) {
         hg.rotateX(-PI / 2);
         mesh(hg, metal, g, 0, 0, len - 2);
         mesh(new THREE.ConeGeometry(1.0, 3.5, 6).rotateX(PI), metal, g, 0, -2.2, len - 2);
-        if (glowOn) mesh(new THREE.BoxGeometry(0.4, 0.5, 9), M.glow, g, 0, 8.1, len - 2);
+        if (lit) mesh(new THREE.BoxGeometry(0.4, 0.5, 9), strip, g, 0, 8.1, len - 2);
+      } else if (w === 'hammer' && tech) {
+        // power maul: a drum head across the haft with a lit core and vent fins
+        mesh(new THREE.CylinderGeometry(3.0, 3.0, 9.5, 12), metal, g, 0, 0, len - 1.5);
+        for (const s of [1, -1]) {
+          mesh(new THREE.CylinderGeometry(3.3, 3.3, 1.2, 12), M.dark, g, 0, s * 4.6, len - 1.5);
+          mesh(new THREE.TorusGeometry(3.05, 0.3, 4, 18).rotateX(PI / 2), strip, g, 0, s * 2.3, len - 1.5);
+        }
+        for (let k = 0; k < 4; k++) mesh(new THREE.BoxGeometry(0.4, 5.5, 1.6), M.dark, g, 3.0, 0, len - 3.2 + k * 1.1);
       } else if (w === 'hammer') {
         mesh(new THREE.BoxGeometry(5.4, 9.2, 5.4), metal, g, 0, 0, len - 1.5);
         for (const s of [1, -1]) mesh(new THREE.BoxGeometry(5.8, 0.6, 5.8), glowOn ? M.glow : M.brass, g, 0, s * 2.2, len - 1.5);
+      } else if (tech) {
+        // stun baton: emitter tip with prongs and a light ring
+        mesh(new THREE.CylinderGeometry(1.3, 1.0, 4, 8).rotateX(PI / 2), metal, g, 0, 0, len - 0.5);
+        mesh(new THREE.TorusGeometry(1.25, 0.32, 4, 12), strip, g, 0, 0, len - 1.6);
+        for (const s of [1, -1]) mesh(new THREE.ConeGeometry(0.35, 2.4, 5).rotateX(PI / 2), metal, g, 0, s * 0.7, len + 2.6);
+        mesh(new THREE.SphereGeometry(0.6, 8, 6), strip, g, 0, 0, len + 1.8);
       } else {
         mesh(new THREE.SphereGeometry(2.6, 12, 10), metal, g, 0, 0, len);
         for (let i = 0; i < 6; i++) {
@@ -694,24 +945,31 @@ function buildWeapon(w, g, mesh, M, L) {
         }
         if (glowOn) mesh(new THREE.SphereGeometry(1.0, 8, 6), M.glow, g, 0, 0, len + 2.7);
       }
-      mesh(new THREE.TorusGeometry(0.95, 0.3, 4, 10), M.brass, g, 0, 0, -1.5);
+      mesh(new THREE.TorusGeometry(0.95, 0.3, 4, 10), fit, g, 0, 0, -1.5);
       break;
     }
     case 'spear': {
       mesh(new THREE.CylinderGeometry(0.7, 0.8, len + 8, 8).rotateX(PI / 2), haft, g, 0, 0, (len - 8) / 2);
       mesh(bladeGeom(7.5, 3.6, 1.0), metal, g, 0, 0, len);
-      mesh(new THREE.CylinderGeometry(0.95, 0.75, 2, 8).rotateX(PI / 2), M.brass, g, 0, 0, len - 0.4);
+      mesh(new THREE.CylinderGeometry(0.95, 0.75, 2, 8).rotateX(PI / 2), fit, g, 0, 0, len - 0.4);
+      if (tech) mesh(new THREE.TorusGeometry(0.95, 0.25, 4, 10), strip, g, 0, 0, len - 1.8);
       break;
     }
     case 'staff': {
       mesh(new THREE.CylinderGeometry(0.75, 0.85, len + 14, 8).rotateX(PI / 2), haft, g, 0, 0, (len - 14) / 2);
-      for (const s of [1, -1]) mesh(taperTube([V(0, s * 1.0, len - 1), V(0, s * 2.8, len + 2.5), V(0, s * 1.4, len + 5.5)], 0.6, 0.15, 5, 8), M.brass, g);
-      mesh(new THREE.IcosahedronGeometry(2.3, 1), M.focus, g, 0, 0, len + 2.5).castShadow = false;
-      mesh(new THREE.TorusGeometry(1.0, 0.35, 5, 10), M.brass, g, 0, 0, len - 1.4);
+      for (const s of [1, -1]) mesh(taperTube([V(0, s * 1.0, len - 1), V(0, s * 2.8, len + 2.5), V(0, s * 1.4, len + 5.5)], 0.6, 0.15, 5, 8), tech ? metal : M.brass, g);
+      mesh(tech ? new THREE.SphereGeometry(1.9, 14, 10) : new THREE.IcosahedronGeometry(2.3, 1), M.focus, g, 0, 0, len + 2.5).castShadow = false;
+      if (tech) for (let k = 0; k < 3; k++) mesh(new THREE.TorusGeometry(1.0, 0.25, 4, 10), strip, g, 0, 0, len - 2.2 - k * 1.3);
+      else mesh(new THREE.TorusGeometry(1.0, 0.35, 5, 10), M.brass, g, 0, 0, len - 1.4);
       break;
     }
     case 'wand': {
-      mesh(new THREE.CylinderGeometry(0.4, 0.75, len + 2, 8).rotateX(PI / 2), haft, g, 0, 0, (len - 2) / 2);
+      if (tech) {
+        // emitter rod: carbon body, coil rings, crystal tip
+        mesh(new THREE.CylinderGeometry(0.75, 0.9, len + 2, 8).rotateX(PI / 2), haft, g, 0, 0, (len - 2) / 2);
+        for (let k = 0; k < 3; k++) mesh(new THREE.TorusGeometry(0.95, 0.22, 4, 10), strip, g, 0, 0, len - 1 - k * 1.6);
+        mesh(new THREE.CylinderGeometry(1.1, 0.8, 1.2, 6).rotateX(PI / 2), M.dark, g, 0, 0, len - 0.1);
+      } else mesh(new THREE.CylinderGeometry(0.4, 0.75, len + 2, 8).rotateX(PI / 2), haft, g, 0, 0, (len - 2) / 2);
       mesh(new THREE.OctahedronGeometry(1.5, 0), M.focus, g, 0, 0, len + 0.8).castShadow = false;
       break;
     }
@@ -720,13 +978,20 @@ function buildWeapon(w, g, mesh, M, L) {
       const back = rifle ? -7 : -2.2;
       mesh(new THREE.BoxGeometry(rifle ? 2.6 : 2.2, rifle ? 3.0 : 2.6, (len - back) * 0.62), M.dark, g, 0, 0.3, back + (len - back) * 0.31);
       mesh(new THREE.CylinderGeometry(0.6, 0.6, (len - back) * 0.5, 8).rotateX(PI / 2), metal, g, 0, 0.6, len - (len - back) * 0.25);
-      mesh(new THREE.BoxGeometry(1.6, 3.6, 1.8).rotateX(0.35), M.leather, g, 0, -2.2, -0.6);
+      mesh(new THREE.BoxGeometry(1.6, 3.6, 1.8).rotateX(0.35), tech ? M.dark : M.leather, g, 0, -2.2, -0.6);
       if (rifle) {
-        mesh(new THREE.BoxGeometry(2.0, 3.4, 5.5).rotateX(-0.12), M.leather, g, 0, -0.6, -6.5);
+        mesh(new THREE.BoxGeometry(2.0, 3.4, 5.5).rotateX(-0.12), tech ? M.carbon : M.leather, g, 0, -0.6, -6.5);
         mesh(new THREE.BoxGeometry(1.4, 3.4, 1.8), M.dark, g, 0, -2.6, 4);
         mesh(new THREE.CylinderGeometry(0.9, 0.9, 4, 10).rotateX(PI / 2), M.dark, g, 0, 2.4, 4.5);
+        if (tech) mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.2, 10).rotateX(PI / 2), M.lens, g, 0, 2.4, 6.55);
       }
-      mesh(new THREE.BoxGeometry(0.3, 0.35, (len - back) * 0.5), glowOn ? M.glow : M.trimCloth, g, 1.15, 0.8, back + (len - back) * 0.45);
+      if (tech) {
+        // slide / shroud with vents and an emitter ring at the muzzle
+        mesh(new THREE.BoxGeometry(rifle ? 2.9 : 2.5, 1.2, (len - back) * 0.45), M.carbon, g, 0, 1.9, len - (len - back) * 0.3);
+        for (let k = 0; k < 3; k++) mesh(new THREE.BoxGeometry(rifle ? 3.0 : 2.6, 0.25, 0.5), M.void, g, 0, 1.4, len - 1.5 - k * 1.2);
+        mesh(new THREE.TorusGeometry(0.75, 0.2, 4, 10), strip, g, 0, 0.6, len - 0.2);
+      }
+      mesh(new THREE.BoxGeometry(0.3, 0.35, (len - back) * 0.5), tech ? strip : (glowOn ? M.glow : M.trimCloth), g, 1.15, 0.8, back + (len - back) * 0.45);
       muzzle = new THREE.Group();
       muzzle.position.set(0, 0.6, len + 0.4);
       g.add(muzzle);
@@ -739,8 +1004,9 @@ function buildWeapon(w, g, mesh, M, L) {
       // limbs run up/down (+-Y) and bend toward +Z (forward)
       const pts = [];
       for (let i = 0; i <= 10; i++) { const t = i / 10 * 2 - 1; pts.push(V(0, t * len, 4 * (1 - t * t) - 0.5 * Math.abs(t))); }
-      mesh(taperTube(pts.slice(0, 6), 0.45, 0.85, 6, 10), M.leather, g);
-      mesh(taperTube(pts.slice(5), 0.85, 0.45, 6, 10), M.leather, g);
+      mesh(taperTube(pts.slice(0, 6), 0.45, 0.85, 6, 10), haft, g);
+      mesh(taperTube(pts.slice(5), 0.85, 0.45, 6, 10), haft, g);
+      if (tech) for (const s of [1, -1]) mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.6, 12).rotateZ(PI / 2), metal, g, 0, s * len, -0.5);
       mesh(new THREE.CylinderGeometry(1.0, 1.0, 3, 8), M.trimCloth, g, 0, 0, 3.8);
       bowString = [];
       for (let i = 0; i < 2; i++) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1, 4), M.eye); g.add(m); bowString.push(m); }
@@ -752,8 +1018,9 @@ function buildWeapon(w, g, mesh, M, L) {
     }
     case 'claws': {
       for (let i = -1; i <= 1; i++) {
-        mesh(taperTube([V(i * 1.0, 0.4, 0.6), V(i * 1.3, 0.9, 3.5), V(i * 1.5, 0.4, 7.5)], 0.55, 0.06, 6, 8), L.armor === 'none' ? M.bone : metal, g);
+        mesh(taperTube([V(i * 1.0, 0.4, 0.6), V(i * 1.3, 0.9, 3.5), V(i * 1.5, 0.4, 7.5)], 0.55, 0.06, 6, 8), L.armor === 'none' && !tech ? M.bone : metal, g);
       }
+      if (tech) mesh(new THREE.BoxGeometry(3.4, 0.4, 0.5), strip, g, 0, 0.9, 0.6);
       break;
     }
     default: break;
@@ -780,6 +1047,7 @@ function buildWeapon(w, g, mesh, M, L) {
     },
     glow(hand, wd, P) {
       const out = [];
+      if (tech && (w === 'mace' || w === 'hammer')) out.push({ p: hand.clone().addScaledVector(wd, len + (w === 'mace' ? 1.8 : 0)), r: 8, color: L.glow || L.trim, a: 0.3 });
       if (w === 'staff' || w === 'wand') {
         const p = hand.clone().addScaledVector(wd, len + 2.5);
         out.push({ p, r: 9 + (P.cast || 0) * 10, color: L.glow || null, a: 0.35 + (P.cast || 0) * 0.4, cast: true });
@@ -791,6 +1059,36 @@ function buildWeapon(w, g, mesh, M, L) {
 }
 
 function buildOffhand(kind, g, mesh, M, L) {
+  const tech = L.style === 'tech';
+  if (tech && kind === 'shield') {
+    // riot shield: polymer face with a viewing slot, gunmetal frame, a light line
+    mesh(shieldGeom(15, 19), [M.shieldFace, M.dark], g, 0, 0, 0);
+    mesh(new THREE.BoxGeometry(2.4, 6, 1.2), M.dark, g, 0, 0, -1.2);
+    return { update() {} };
+  }
+  if (tech && kind === 'buckler') {
+    // arm-mounted energy shield: emitter hub and a translucent field (FX pass, not inked)
+    mesh(new THREE.CylinderGeometry(1.8, 2.2, 1.4, 8).rotateX(PI / 2), M.dark, g, 0, 0, 0.4);
+    mesh(new THREE.TorusGeometry(5.6, 0.3, 4, 26), M.neon, g, 0, 0, 1.0);
+    const field = mesh(new THREE.CircleGeometry(5.6, 26), new THREE.MeshBasicMaterial({
+      color: (M.neon.color || new THREE.Color(0.5, 0.8, 1)).clone().multiplyScalar(0.5), transparent: true, opacity: 0.45,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+    }), g, 0, 0, 1.0);
+    field.castShadow = false;
+    field.userData.fx = true;
+    return { update() {} };
+  }
+  if (tech && kind === 'orb') {
+    // companion drone hovering over the hand: carbon pod, light ring, lens eye, stub rotors
+    mesh(new THREE.SphereGeometry(1.9, 14, 10).scale(1, 0.8, 1.1), M.carbon, g);
+    mesh(new THREE.TorusGeometry(2.1, 0.28, 4, 20).rotateX(PI / 2), M.neon, g);
+    mesh(new THREE.SphereGeometry(0.75, 10, 8), M.focus, g, 0, 0.1, 1.9).castShadow = false;
+    for (const s of [1, -1]) {
+      mesh(new THREE.BoxGeometry(2.2, 0.3, 0.6), M.dark, g, s * 2.6, 0.4, 0);
+      mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.12, 12), M.rotor || M.dark, g, s * 3.6, 0.7, 0);
+    }
+    return { update() {}, glow: (p) => [{ p, r: 9, color: L.glow || null, a: 0.35, cast: true }] };
+  }
   if (kind === 'shield') {
     const sg = shieldGeom(15, 19);
     mesh(sg, [M.shieldFace, M.steel], g, 0, 0, 0);

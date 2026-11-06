@@ -117,7 +117,7 @@ function rnd(seed) {
  * hem (canvas bottom = v 0), a trim band with a stitched edge, and (tattered) a ragged hem cut
  * into the alpha.
  */
-function hangingCloth(base, trim, stitch, weaveImg, { tattered = false, seed = 1, band = true } = {}) {
+function hangingCloth(base, trim, stitch, weaveImg, { tattered = false, seed = 1, band = true, thin = false } = {}) {
   const c = canvas(256, 512);
   const x = c.getContext('2d');
   const r = rnd(seed);
@@ -130,7 +130,11 @@ function hangingCloth(base, trim, stitch, weaveImg, { tattered = false, seed = 1
   g.addColorStop(0.3, 'rgba(20,16,12,0.12)');
   g.addColorStop(1, 'rgba(0,0,0,0.15)');
   x.fillStyle = g; x.fillRect(0, 0, 256, 512);
-  if (band && !tattered) {
+  if (band && thin) {
+    // techwear: a single light line near the hem and a seam up the middle
+    x.fillStyle = trim; x.fillRect(0, 488, 256, 6);
+    x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(126, 0, 3, 512);
+  } else if (band && !tattered) {
     x.fillStyle = trim; x.fillRect(0, 474, 256, 38);
     x.fillStyle = stitch; x.fillRect(0, 470, 256, 3);
     for (let i = 0; i < 256; i += 12) x.fillRect(i, 490, 6, 3);
@@ -273,7 +277,85 @@ export function makeMaterials(L, look, T, U) {
   // the head / helm uses the armour colour, or the hide for armourless bodies
   M.helm = L.armor === 'none' ? M.hide : M.plate;
   M.helmEdge = L.armor === 'none' ? M.hide : M.edge;
+  if (L.style === 'tech') techMaterials(L, look, T, U, M, { tag, metal, leatherM, fabricM, glow, stitch });
   return M;
+}
+
+/**
+ * style 'tech': hard-shell polymer instead of forged plate, gunmetal instead of steel and brass,
+ * ballistic weave instead of mail, techwear instead of wool, a glossy synthetic coat, dark glass
+ * for visors and lenses. Light strips use M.neon (the glow colour, or a dim trim when unlit).
+ */
+function techMaterials(L, look, T, U, M, k) {
+  const { tag, metal, leatherM, fabricM, glow, stitch } = k;
+  const body = col(L.body);
+  const shell = (color, o = {}) => tag(withAO(new THREE.MeshPhysicalMaterial({
+    color, metalness: o.metal ?? 0.12, roughness: o.rough ?? 0.42,
+    map: T.metal.detail, roughnessMap: T.metal.rough, normalMap: T.metal.normal,
+    normalScale: new THREE.Vector2(o.ns ?? 0.18, o.ns ?? 0.18),
+    clearcoat: o.coat ?? 0.85, clearcoatRoughness: o.coatRough ?? 0.22, envMapIntensity: 1.2,
+  }), U, o.grime ?? 0.55), o.tile ?? 40);
+  const lum = body.r * 0.3 + body.g * 0.59 + body.b * 0.11;
+  // keep dark armour readable: lift very dark shells, tame very bright ones
+  const shellC = body.clone().multiplyScalar(lum < 0.04 ? 2.2 : (lum > 0.5 ? 0.9 : 1.35));
+  M.plate = shell(shellC);
+  M.edge = shell(col('#1b1d22'), { rough: 0.55, coat: 0.3, metal: 0.4 });
+  M.steel = metal(col(mix(look.metalColor || '#6c7380', '#20232a', 0.25)), { rough: 0.62, ns: 0.35, tile: 30 });
+  M.brass = metal(col(look.accentColor || '#8d949e'), { rough: 0.45, ns: 0.25, tile: 30 });
+  M.dark = shell(col('#18191d'), { rough: 0.5, coat: 0.45, metal: 0.3 });
+  M.carbon = shell(col('#22242a'), { rough: 0.36, coat: 0.9, metal: 0.25, ns: 0.4, tile: 6 });
+  M.mail = fabricM(col(mix(L.body, '#101115', 0.78)), { ns: 1.2, tile: 4, grime: 0.5 });
+  M.mail.sheenRoughness = 0.4;
+  M.under = fabricM(col(mix(L.under, '#121318', 0.35)), { ns: 1.4, tile: 5 });
+  M.leather = leatherM(col(mix(L.leather, '#141519', 0.5)), { ns: 1.0, grime: 0.5 });
+  M.leather.roughness = 0.7;
+  M.jerkin = fabricM(body.clone().multiplyScalar(1.05), { ns: 1.6, tile: 5 });
+  M.cloth = fabricM(body.clone().multiplyScalar(0.95), { ns: 1.3, tile: 6 });
+  M.trimCloth = fabricM(col(mix(L.trim, '#202228', 0.45)), { tile: 6 });
+  // glossy synthetic coat (PVC / waxed shell), trim line at the hem
+  const coatTex = hangingCloth(L.cloakC, glow ? L.glow : mix(L.trim, '#000000', 0.2), stitch, T.leather.detail.image, { tattered: L.cloak === 'tattered', seed: 3, band: true, thin: true });
+  M.cloak = tag(withAO(new THREE.MeshPhysicalMaterial({
+    map: coatTex, roughness: 0.55, roughnessMap: cloned(T.leather.rough, 2, 4), normalMap: cloned(T.leather.normal, 2, 4),
+    normalScale: new THREE.Vector2(0.6, 0.6), clearcoat: 0.6, clearcoatRoughness: 0.3,
+    side: THREE.DoubleSide, alphaTest: L.cloak === 'tattered' ? 0.5 : 0,
+  }), U, 0.5), 1, true);
+  M.robe = tag(withAO(new THREE.MeshPhysicalMaterial({
+    map: hangingCloth(L.body, glow ? L.glow : L.trim, stitch, T.fabric.detail.image, { seed: 5, thin: true }),
+    roughness: 0.8, roughnessMap: cloned(T.fabric.rough, 4, 3), normalMap: cloned(T.fabric.normal, 4, 3),
+    normalScale: new THREE.Vector2(1.4, 1.4), sheen: 0.6, sheenRoughness: 0.5,
+    sheenColor: col(L.body).lerp(new THREE.Color(0.8, 0.9, 1), 0.3), side: THREE.DoubleSide,
+  }), U, 0.5), 1, true);
+  M.hoodCloth = M.cloak;
+  M.coat = leatherM(col(L.cloakC).multiplyScalar(1.15), { ns: 0.8, grime: 0.4 });
+  M.coat.roughness = 0.95;
+  M.coat.roughnessMap = null;
+  M.hair = fabricM(col(look.hairColor || mix(L.trim, '#0a0a0e', 0.55)), { ns: 3, tile: 3 });
+  M.lens = new THREE.MeshPhysicalMaterial({
+    color: col(mix(L.trim, '#05060a', 0.8)), metalness: 0.2, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03,
+    emissive: glow ? glow.clone().multiplyScalar(0.35) : new THREE.Color(0, 0, 0), envMapIntensity: 2,
+  });
+  M.neon = glow ? M.glow : new THREE.MeshStandardMaterial({ color: col(L.trim).multiplyScalar(0.8), roughness: 0.35, emissive: col(L.trim).multiplyScalar(0.12) });
+  M.shieldFace = tag(withAO(new THREE.MeshStandardMaterial({
+    map: techPanel(L.body, L.glow || L.trim), metalness: 0.2, roughness: 0.4,
+    normalMap: cloned(T.metal.normal, 0.6, 0.6), normalScale: new THREE.Vector2(0.4, 0.4),
+  }), U, 0.6), 1, true);
+  M.helm = L.armor === 'none' ? M.hide : M.plate;
+  M.helmEdge = L.armor === 'none' ? M.hide : M.edge;
+}
+
+/** Riot-shield face: dark polymer field, a viewing slot, hazard chevrons and a light line. */
+function techPanel(field, line) {
+  const c = canvas(256, 256);
+  const x = c.getContext('2d');
+  x.fillStyle = mix(field, '#0c0d10', 0.55); x.fillRect(0, 0, 256, 256);
+  x.fillStyle = 'rgba(160,200,230,0.18)'; x.fillRect(40, 26, 176, 44);
+  x.fillStyle = mix(field, '#ffffff', 0.15);
+  for (let i = -2; i < 10; i++) { x.beginPath(); x.moveTo(i * 32, 256); x.lineTo(i * 32 + 16, 256); x.lineTo(i * 32 + 48, 212); x.lineTo(i * 32 + 32, 212); x.fill(); }
+  x.fillStyle = line; x.fillRect(20, 120, 216, 7);
+  x.strokeStyle = 'rgba(0,0,0,0.6)'; x.lineWidth = 6; x.strokeRect(6, 6, 244, 244);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 /** Translucent slime and membranes (creatures). */
@@ -295,8 +377,34 @@ export function creatureMaterials(L, M, U) {
     sheen: 0.6, sheenRoughness: 0.5, sheenColor: col('#ffb090'), transparent: true, opacity: 0.92,
   }), U, 0.5);
   M.membrane.userData.keepUV = true;
+  if (L.style === 'tech') {
+    // machine bodies: crawlers and fliers get the painted hull; the blob becomes a hologram
+    M.chitin = M.paint;
+    M.hide = M.paint;
+    M.bone = M.steel; // mandibles, spines and claws become machined steel
+    M.slime = new THREE.MeshBasicMaterial({
+      color: col(L.glow || L.trim).multiplyScalar(0.55), map: scanlines(), transparent: true, opacity: 0.85,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+    });
+    M.slime.userData.keepUV = true;
+    M.slime.userData.holo = true;
+  }
   M.rotor = new THREE.MeshBasicMaterial({ color: col(mix(L.metal, '#ffffff', 0.3)), transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide });
   return M;
+}
+
+/** Horizontal scanlines with a few glitch bands (hologram shell). */
+function scanlines() {
+  const c = canvas(64, 256);
+  const x = c.getContext('2d');
+  const r = rnd(13);
+  x.fillStyle = '#000'; x.fillRect(0, 0, 64, 256);
+  for (let y = 0; y < 256; y += 6) { x.fillStyle = `rgba(255,255,255,${0.35 + r() * 0.25})`; x.fillRect(0, y, 64, 3); }
+  for (let i = 0; i < 4; i++) { x.fillStyle = 'rgba(255,255,255,0.9)'; x.fillRect(0, r() * 256, 64, 1 + r() * 4); }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(1, 3);
+  return t;
 }
 
 /** A dim, warm dungeon room as the reflection environment (torch hot-spots match the key light). */

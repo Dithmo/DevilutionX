@@ -18,6 +18,7 @@
  */
 export { drawTile, drawWall, drawTileOutline, TILE_W, TILE_H, WALL_H } from './draw_tiles.js';
 import { drawActor as drawActor2d } from './draw_actor.js';
+export { setLookDefaults } from './draw_actor.js';
 import { drawActor3d } from './actor3d/index.js';
 export { drawItemGlyph, drawMissile } from './draw_items.js';
 export { drawObject } from './draw_objects.js';

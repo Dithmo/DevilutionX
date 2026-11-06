@@ -17,7 +17,7 @@ import { createRng } from './core/rng.js';
 import { createCamera, renderPos } from './render/camera.js';
 import { renderWorld, getTileAtScreen, getEntityAtScreen } from './render/iso.js';
 import { setRenderScale } from './render/draw_util.js';
-import { preloadActors3d, warmActors3d, actors3dState, setActors3dSync } from './render/sprites.js';
+import { preloadActors3d, warmActors3d, actors3dState, setActors3dSync, setLookDefaults } from './render/sprites.js';
 import { renderUi, updateUi, uiHandleClick, uiHandleKey, uiHitTest, openPanel, closeAll, openVendor, addMessage } from './render/ui.js';
 import { computeFov, MAX_LIGHT } from './world/fov.js';
 import { generateLevel, levelDepsReady } from './world/levelgen/index.js';
@@ -605,6 +605,7 @@ async function boot() {
     game.ui.loading = { title: 'Failed to load theme', text: String(err && err.message), progress: 0 };
     return;
   }
+  setLookDefaults(game.theme.meta.lookDefaults); // e.g. { style: 'tech' } for a sci-fi setting
   // 3D actors (default): load the baker and bake the class cards before the menu shows.
   // Any failure keeps the 2D puppet; ?actors=2d or theme meta.actors = '2d' skips it.
   game.ui.loading = { title: game.theme.meta.title, text: game.strings.loading || 'Loading', progress: 0.8 };

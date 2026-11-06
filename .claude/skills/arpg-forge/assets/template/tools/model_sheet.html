@@ -13,7 +13,7 @@
 // &actors=2d draws the 2D puppet instead of the 3D-baked actors (the default).
 import { setRenderScale } from '../src/render/draw_util.js';
 import activeTheme from '../data/active_theme.js';
-import { drawActor, preloadActors3d, setActors3dSync, actors3dState } from '../src/render/sprites.js';
+import { drawActor, setLookDefaults, preloadActors3d, setActors3dSync, actors3dState } from '../src/render/sprites.js';
 import { drawObject } from '../src/render/draw_objects.js';
 import { drawItemGlyph, drawMissile } from '../src/render/draw_items.js';
 
@@ -24,6 +24,7 @@ const Z = Number(q.get('zoom') || 2);
 const theme = (await import(`../data/themes/${themeId}/index.js`)).default;
 setRenderScale(Z);
 setActors3dSync(true);
+setLookDefaults(theme.meta && theme.meta.lookDefaults);
 await preloadActors3d({ mode: theme.meta && theme.meta.actors, timeoutMs: 20000 });
 const cv = document.getElementById('c');
 const W = 1400;

@@ -11,7 +11,8 @@ Ranges are `[lo, hi]` inclusive. All text is plain strings (no markup).
 data/themes/<id>/
   index.js        merges and exports { meta, palette, tilesets, tiers, town, classes, monsters,
                   uniqueMonsters, items, skills, objects, altarEffects, npcs, quests, flavor, sfx, strings }
-  meta.js         { id, title, tagline, version, actors?: '3d'|'2d' }   // actors: '2d' turns off the 3D actor renderer
+  meta.js         { id, title, tagline, version, actors?: '3d'|'2d', lookDefaults?: { style?: 'classic'|'tech' } }
+                  // actors: '2d' turns off the 3D actor renderer; lookDefaults.style 'tech' gives every actor the sci-fi kit
   palette.js      { bg, panel, panelBorder, text, textDim, accent, hp, mp, xp, gold,
                     rarity: { normal, magic, rare, unique }, danger, good, light,
                     // optional HUD chrome + lighting (derived when absent):
@@ -81,9 +82,10 @@ maxDepth = last tier's depths[1]
 ActorLook = {   // optional on classes, monsters, uniques and NPCs; defaults come from the silhouette
   weapon?: 'sword'|'katana'|'greatsword'|'dagger'|'axe'|'hammer'|'mace'|'spear'|'staff'|'wand'|'pistol'|'rifle'|'bow'|'claws'|'none',
   offhand?: 'shield'|'buckler'|'orb'|'pistol'|'dagger'|'none',
-  helm?: 'full'|'visor'|'open'|'hood'|'horned'|'crest'|'bare', armor?: 'plate'|'light'|'cloth'|'none',
+  helm?: 'full'|'visor'|'open'|'hood'|'horned'|'crest'|'bare'|'mask'|'goggles', armor?: 'plate'|'light'|'cloth'|'none',
   cloak?: 'none'|'short'|'long'|'tattered', glow?: true|color,
-  cloakColor?, metalColor?, skinColor?, accentColor?, underColor?: color,
+  style?: 'classic'|'tech',   // gear kit; defaults to meta.lookDefaults.style, then 'classic'
+  cloakColor?, metalColor?, skinColor?, accentColor?, underColor?, hairColor?: color,
   legs?: 4|6|8 (crawler), wings?: 'membrane'|'rotor' (flier),
   render?: '3d'|'2d' }   // '2d' draws this look with the 2D puppet even when 3D actors are on
 ```

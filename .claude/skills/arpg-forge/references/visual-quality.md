@@ -204,7 +204,9 @@ Every colour and noun comes from `look` in theme data. The code supplies neutral
 |---|---|
 | `weapon` | sword, katana, greatsword, dagger, axe, hammer, mace, spear, staff, wand, pistol, rifle, bow, claws, none. Item glyph names are accepted too. |
 | `offhand` | shield, buckler, orb, pistol, dagger, none |
-| `helm` | full, visor, open, hood, horned, crest, bare |
+| `helm` | full, visor, open, hood, horned, crest, bare, mask (respirator and goggles), goggles. In 2D, mask draws as visor and goggles as open. |
+| `style` | classic (default) or tech (sci-fi kit, see §5b). The theme-wide default comes from `meta.lookDefaults`. |
+| `hairColor` | colour of the hair on open, mask and goggles heads (3D) |
 | `armor` | plate, light, cloth, none |
 | `cloak` | none, short, long, tattered |
 | `glow` | `true` (uses trimColor) or a colour |
@@ -283,6 +285,31 @@ draw_actor.js), so both renderers animate identically. It is also the **fallback
 **Switches**
 - Everything 2D: `?actors=2d` in the URL, or `meta.actors: '2d'` in the theme.
 - One look 2D: `look.render: '2d'`. Use it for a deliberately flat or retro creature.
+
+**Gear style: classic or tech.** `look.style` chooses the kit the rig builds from the same
+fields. `classic` is steel, brass, leather and cloth. `tech` is the sci-fi or cyberpunk kit.
+Set it for a whole game with `meta.lookDefaults: { style: 'tech' }`; boot and the model
+sheet pass that to `setLookDefaults()` in draw_actor.js. A look overrides it with its own
+`style`, for example `style: 'classic'` on organic mutants in a sci-fi game. Under `tech`:
+
+| Part | Classic | Tech |
+|---|---|---|
+| plate | steel plate, brass rivets, gorget | white hard-shell polymer (clearcoat), chest-core light, neon strips, faceted pads |
+| light / cloth / none | leather jerkin, robe, bare chest | tactical vest with pouches; techwear robe with a neon seam and fitted sleeves; brutes get trousers, boots, cyber forearms and spine implants |
+| cloak | cloth cloak with clasps | glossy synthetic coat, stand-up collar, light line at the hem |
+| visor / crest | knight helm | shell helmet, wraparound lens visor, ear modules, crest fin |
+| full / horned | great helm | faceplate with a T slit, jaw vents, antennas |
+| hood / open / bare | cloth hood, face, bald | hood with an LED eye band; undercut, cyber eye and headset; scalp implants |
+| mask / goggles | (2D: visor / open) | respirator with twin filters and goggles; goggles only |
+| weapons | steel blades, wooden hafts | monoblades with lit edges, stun baton (mace), power maul (hammer), carbon guns with scope and muzzle ring, carbon bow, emitter rod (wand), staff with coils |
+| offhands | wooden or steel shield, buckler, orb | riot shield, energy-field buckler, companion drone (orb) |
+| creatures | chitin, hide, bone, slime | painted shells, steel, scanline hologram (blob) |
+
+Neon parts use `trimColor` and glow only when the look has `glow`; otherwise they are a dim
+emissive trim. The tech materials live in `techMaterials()` in materials.js; the geometry is
+the `tech` branches in humanoid.js and `techHead()`. To add a style, follow the same pattern:
+a material override block plus `if (tech)` geometry branches. Put the style in the look key
+(resolveLook already does) so the sprites cache apart.
 
 **Failure handling.** No WebGL2, a missing file, a timeout or an exception in a bake all set
 the state to `failed` and log one warning. From then on the puppet draws everything, and

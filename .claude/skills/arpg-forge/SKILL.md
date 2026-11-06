@@ -80,6 +80,17 @@ Rules of thumb while writing:
   fallback when WebGL2 is unavailable. To force 2D, use `meta.actors: '2d'` for the whole
   game, or `look.render: '2d'` for one look.
 
+  Match the gear to the setting. For sci-fi, cyberpunk or modern settings, set
+  `meta.lookDefaults: { style: 'tech' }` in meta.js. Every actor then gets the tech kit:
+  - hard-shell armour with neon strips, tactical vests and techwear coats;
+  - visor helmets, respirators (`helm: 'mask'`), goggles (`helm: 'goggles'`) and headsets;
+  - monoblades, stun batons, power mauls, carbon guns, riot or energy shields and drones;
+  - robot crawlers and hologram blobs.
+
+  Put `style: 'classic'` on a look that should stay organic, such as a mutant or a fungus
+  brute. `hairColor` sets the hair for open, mask and goggles heads. The default `classic`
+  style is steel, leather and cloth, which suits fantasy, pirate and historical settings.
+
   `references/visual-quality.md` lists every knob with its default and the recipes behind the
   look (§5b covers the 3D actors). Read it when the user wants it to look better, or sends a
   target image.
