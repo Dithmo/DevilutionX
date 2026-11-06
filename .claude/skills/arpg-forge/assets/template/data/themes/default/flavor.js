@@ -3,6 +3,8 @@
  * narration and the level naming rule. Tone: grim but dry.
  */
 export default {
+  // Names the title screen's random-name button picks from.
+  heroNames: ['Aldo Venn', 'Mira Holt', 'Corr Ashby', 'Tess Rowan', 'Brick Maddox', 'Wren Callow', 'Hale Dunmore', 'Ysolde Pike'],
   deathLines: [
     'The watch will not come looking. They never do.',
     'Your lamp gutters out. The dark does not notice.',

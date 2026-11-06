@@ -90,6 +90,7 @@ function check(theme) {
     const reach = new Set([c.startSkill, ...(c.skillPool || []), ...Object.values(c.levelSkills || {})].filter(Boolean));
     if (reach.size < 4) err(`class ${c.id}: fewer than 4 reachable skills`);
     if (!SILH.has(c.look?.silhouette)) err(`class ${c.id}: look.silhouette invalid`);
+    if (!c.epithet) warn(`class ${c.id}: no epithet (subtitle on the class-select card)`);
     // Affordability: a skill the class is handed (startSkill at level 1, levelSkills[L] at
     // level L) must cost no more than the class's mana pool at that level with base stats only
     // (no points spent, no items), else the gift is unusable.
@@ -109,6 +110,7 @@ function check(theme) {
   }
   for (const s of t.skills) {
     if (!ARCH.has(s.archetype)) err(`skill ${s.id}: unknown archetype ${s.archetype}`);
+    if (!s.blurb) warn(`skill ${s.id}: no blurb (shown on class cards and skill tooltips)`);
     if (!Number.isFinite(s.manaBase) || !Number.isFinite(s.manaMin)) err(`skill ${s.id}: mana fields`);
     if (s.dmg && (!isRange(s.dmg.base) || !isRange(s.dmg.perCasterLevel) || !isRange(s.dmg.perSkillLevel))) err(`skill ${s.id}: dmg triple malformed`);
     for (const c of s.classes || []) if (!classIds.has(c)) err(`skill ${s.id}: class ${c} not found`);
@@ -181,6 +183,7 @@ function check(theme) {
     for (const k of ['journal', 'started', 'done']) if (!q.text?.[k]) err(`quest ${q.id}: text.${k}`);
   }
   for (const k of QTYPES) if (!qtypes.has(k)) warn(`quests: no quest of type ${k}`);
+  if (!(t.flavor.heroNames || []).length) warn('flavor.heroNames empty: the title screen has no random-name button');
   for (const k of SFX_REQUIRED) if (!t.sfx[k]) err(`sfx: missing ${k}`);
   for (const k of ['bg', 'panel', 'text', 'accent', 'hp', 'mp', 'xp', 'gold']) if (!t.palette[k]) err(`palette: missing ${k}`);
   for (const k of ['normal', 'magic', 'rare', 'unique']) if (!t.palette.rarity?.[k]) err(`palette.rarity: missing ${k}`);

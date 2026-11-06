@@ -50,17 +50,24 @@ Work through the theme files in this order; later files reference ids from earli
 
 | Order | File | What to write | Minimum size |
 |---|---|---|---|
-| 1 | `meta.js`, `palette.js`, `strings.js` | title, tagline, UI colours, vocabulary (life→"vitals", gold→"credits"…) | — |
+| 1 | `meta.js`, `palette.js`, `strings.js` | title, tagline, UI colours, vocabulary (life→"vitals", gold→"credits"…), title-screen words (`chooseClass`, `start`, `load`, `menuHint`, `strShort`…`vitShort`) | — |
 | 2 | `tilesets.js`, `world.js` | 4 tilesets (palettes + generator each), 4 tiers with depth ranges, the hub layout and NPC placements | 4 tilesets, 4 tiers, 16 depths |
-| 3 | `classes.js` | 3 classes mapped to melee / ranged / caster with setting-native names, stat lines, start kits, skill pools | 3 |
+| 3 | `classes.js` | 3 classes mapped to melee / ranged / caster with setting-native names, an `epithet`, a `look.accent` colour, stat lines, start kits, skill pools | 3 |
 | 4 | `skills.js` | 16 skills across the archetypes (bolt, pierce, nova, chain, wall, groundAoe, heal, buff, blink, summon, homing, multishot, melee, townPortal, identify) | 16 |
 | 5 | `items.js` | bases (≥15 weapons, ≥11 armour, ring, amulet), ≥25 prefixes, ≥25 suffixes, ≥8 uniques, consumables incl. a scroll and tome per skill, quest items | see counts |
 | 6 | `monsters.js` | 16 silhouettes × 2–3 variants across 4 tiers, each with an AI archetype; 6 uniques including the 4 tier bosses | ≈40 + 6 |
 | 7 | `objects.js` | 12 object types, ≥12 random-altar effects with flavour text | 12 + 12 |
 | 8 | `npcs.js`, `quests.js` | 6 NPCs (healer, smith, arcanist, questgiver, gossip, wanderer) with 3–5 lines each; 6 quests covering killBoss, fetch, clearArea, collectN, findNpc + a main line | 6 + 6 |
-| 9 | `flavor.js`, `sfx.js` | death lines, tips, intro/outro, synth descriptors | 8 / 12 / 4+3 / 22 |
+| 9 | `flavor.js`, `sfx.js` | death lines, tips, intro/outro, `heroNames` for the random-name button, synth descriptors | 8 / 12 / 4+3 / 8 / 22 |
 
 Rules of thumb while writing:
+- The class-select screen is the player's first look at the game, so write it in the setting's
+  voice. Each card shows the class name in its accent colour, the epithet, a portrait, the
+  blurb, the stats, and the first three skills the class is given (start skill, then level gifts)
+  with their blurbs. So give every skill a one-line blurb that says what it does, and rename
+  the buttons (`start: 'Set Sail'`, `chooseClass: 'Sign the Articles'`). In testing, a run
+  without this skill that put that care into its class screen came out looking better than a
+  run with the skill that left the defaults.
 - Keep every number inside the ranges the default theme uses unless `references/systems/`
   gives you a reason. The default numbers are the genre's proven curve.
 - Names are the setting; mechanics are the genre. Rename "mana" to "charge" freely; do not

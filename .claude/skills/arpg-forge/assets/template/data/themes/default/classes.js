@@ -17,6 +17,7 @@
 const WARDEN = {
   id: 'warden',
   name: 'Warden',
+  epithet: 'Shield of the Watch',
   blurb: 'A wall-watch veteran. Heavy arms, heavier patience; hits hard and shrugs off blows.',
   base: { str: 30, mag: 10, dex: 20, vit: 25 },
   max: { str: 250, mag: 50, dex: 60, vit: 100 },
@@ -42,6 +43,7 @@ const WARDEN = {
 const STALKER = {
   id: 'stalker',
   name: 'Stalker',
+  epithet: 'Ridge Hunter',
   blurb: 'A ridge-runner who hunts from the dark. Quick bow work and quicker feet.',
   base: { str: 20, mag: 15, dex: 30, vit: 20 },
   max: { str: 55, mag: 70, dex: 250, vit: 80 },
@@ -65,6 +67,7 @@ const STALKER = {
 const HEXWRIGHT = {
   id: 'hexwright',
   name: 'Hexwright',
+  epithet: 'Keeper of Sigils',
   blurb: 'A lantern-scholar who bends the old sigils. Frail, but the ruins answer when called.',
   base: { str: 15, mag: 35, dex: 15, vit: 20 },
   max: { str: 45, mag: 250, dex: 85, vit: 80 },

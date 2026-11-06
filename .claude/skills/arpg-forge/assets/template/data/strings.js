@@ -38,7 +38,8 @@ export const DEFAULT_STRINGS = {
   levelUp: 'You feel stronger.', pickUp: 'Pick up', open: 'Open', use: 'Use', talk: 'Talk',
   monsterLevel: 'Monster level', kills: 'Kills', deaths: 'Deaths', playTime: 'Time',
   notEnoughMana: 'Not enough mana.', unknownSkill: 'You do not know that skill.', goldItem: 'Gold',
-  hardcoreBadge: 'PERMADEATH',
+  hardcoreBadge: 'PERMADEATH', levelShort: 'Lv',
+  permadeathHint: 'Permadeath: if this hero dies, the save is erased.',
 };
 
 /**

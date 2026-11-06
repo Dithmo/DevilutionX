@@ -6,7 +6,7 @@
  */
 import { worldToScreen, worldPos } from '../camera.js';
 import { drawActor } from '../sprites.js';
-import { mix } from '../draw_util.js';
+import { mix, lighten } from '../draw_util.js';
 import { idx, inBounds } from '../../world/tiles.js';
 import { uiLayout } from './layout.js';
 import {
@@ -29,26 +29,35 @@ const LABEL_ALPHA = 0.8;
 const TOOLTIP_SIZE = 12;
 const TOOLTIP_ALPHA = 0.95;
 const CURSOR_OFFSET = 16;
-const TITLE_SIZE = 40;
-const TAGLINE_SIZE = 15;
-const CARD_W = 200;
-const CARD_H = 200;
-const CARD_GAP = 20;
-const CARD_Y = 130;
+const TITLE_SIZE = 34;
+const TAGLINE_SIZE = 14;
+// Class cards: name, epithet, lit portrait, blurb, stat boxes, then the skills the class is
+// handed (start skill + level gifts) so the player can see how each class plays.
+const CARD_W_MAX = 214;
+const CARD_H = 262;
+const CARD_GAP = 14;
+const CARD_Y = 90;
+const CARD_PORTRAIT = { y: 44, h: 70, pad: 8 };
 const CARD_ACTOR_SCALE = 1.5;
-const CARD_ACTOR_FEET_Y = 108;
-const CARD_BLURB_Y = 128;
-const CARD_BLURB_LINES = 3;
+const CARD_ACTOR_FEET_Y = 104;
+const CARD_BLURB_Y = 120;
+const CARD_BLURB_LINES = 2;
+const CARD_STATS_Y = 150;
+const CARD_STATS_H = 26;
+const CARD_SKILLS_Y = 184;
+const CARD_SKILL_ROW = 24;
+const CARD_SKILLS_MAX = 3;
+const RANDOM_NAME_W = 26;
 const ROW_KINDS = new Set(['skillRow', 'vendorItem', 'sellItem']);
 const CELL_KINDS = new Set(['invCell', 'equipSlot', 'belt', 'hotkey', 'skillButton']);
 const ANCHOR_GAP = 6;
 const FIELD_W = 260;
 const FIELD_H = 24;
-const FIELD_Y = 352;
+const FIELD_Y = 366;
 const FIELD_GAP = 10;
 const BIG_BUTTON_W = 150;
 const BIG_BUTTON_H = 32;
-const MENU_BUTTONS_Y = 440;
+const MENU_BUTTONS_Y = 446;
 const TOGGLE_W = 170;
 const TOGGLE_GAP = 16;
 const NAME_MAX = 16;
@@ -372,38 +381,31 @@ export function drawMainMenu(ctx, game) {
   fillRect(ctx, full, pal.bg);
   registerHit(game, full, { kind: 'panel', name: 'mainMenu' });
   const meta = (game.theme && game.theme.meta) || {};
-  drawText(ctx, meta.title || str(game, 'title', 'ARPG Forge'), uiLayout.viewW / 2, 40, { align: 'center', size: TITLE_SIZE, weight: 'bold', color: pal.gold, game });
-  drawText(ctx, meta.tagline || '', uiLayout.viewW / 2, 92, { align: 'center', size: TAGLINE_SIZE, color: pal.textDim, game });
+  drawText(ctx, meta.title || str(game, 'title', 'ARPG Forge'), uiLayout.viewW / 2, 16, { align: 'center', size: TITLE_SIZE, weight: 'bold', color: pal.gold, game });
+  drawText(ctx, meta.tagline || '', uiLayout.viewW / 2, 58, { align: 'center', size: TAGLINE_SIZE, color: pal.textDim, game });
 
   const classes = classList(game);
   const m = ui.menu;
   m.classIndex = Math.max(0, Math.min(Math.max(0, classes.length - 1), m.classIndex | 0));
-  const total = classes.length * CARD_W + Math.max(0, classes.length - 1) * CARD_GAP;
+  const n = Math.max(1, classes.length);
+  const cardW = Math.min(CARD_W_MAX, Math.floor((uiLayout.viewW - 32 - (n - 1) * CARD_GAP) / n));
+  const total = classes.length * cardW + Math.max(0, classes.length - 1) * CARD_GAP;
   let x = (uiLayout.viewW - total) / 2;
   classes.forEach((c, i) => {
-    const r = { x, y: CARD_Y, w: CARD_W, h: CARD_H };
-    const sel = i === m.classIndex;
-    const hover = pointInRect(mx, my, r);
-    drawPanel(ctx, r, { game, alpha: sel ? 1 : 0.8 });
-    if (sel || hover) {
-      ctx.strokeStyle = sel ? pal.accent : pal.text;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
-    }
-    drawText(ctx, c.name || c.id, r.x + r.w / 2, r.y + 10, { align: 'center', size: 16, weight: 'bold', color: sel ? pal.accent : pal.text, game });
-    const look = c.look || {};
-    drawActor(ctx, r.x + r.w / 2, r.y + CARD_ACTOR_FEET_Y, { silhouette: look.silhouette || 'bulky', bodyColor: look.bodyColor || pal.textDim, trimColor: look.trimColor || pal.panelBorder }, { dir: 0, anim: 'stand', scale: CARD_ACTOR_SCALE });
-    const font = fontAt(game, 11);
-    wrapText(ctx, c.blurb || '', r.w - 20, font).slice(0, CARD_BLURB_LINES).forEach((ln, j) => drawText(ctx, ln, r.x + r.w / 2, r.y + CARD_BLURB_Y + j * 14, { align: 'center', size: 11, color: pal.textDim, game }));
-    const b = c.base || {};
-    drawText(ctx, `${str(game, 'strShort', 'Str')} ${b.str || 0}  ${str(game, 'magShort', 'Mag')} ${b.mag || 0}  ${str(game, 'dexShort', 'Dex')} ${b.dex || 0}  ${str(game, 'vitShort', 'Vit')} ${b.vit || 0}`, r.x + r.w / 2, r.y + r.h - 18, { align: 'center', size: 10, color: pal.text, game });
-    registerHit(game, r, { kind: 'menuClass', index: i, classId: c.id });
-    x += CARD_W + CARD_GAP;
+    drawClassCard(ctx, game, c, { x, y: CARD_Y, w: cardW, h: CARD_H }, i === m.classIndex, mx, my);
+    registerHit(game, { x, y: CARD_Y, w: cardW, h: CARD_H }, { kind: 'menuClass', index: i, classId: c.id });
+    x += cardW + CARD_GAP;
   });
   if (classes.length === 0) drawText(ctx, str(game, 'noClasses', 'No classes in theme'), uiLayout.viewW / 2, CARD_Y + 40, { align: 'center', color: pal.danger, game });
 
   const caret = Math.floor((game.tick || Date.now() / 50) / CARET_BLINK_TICKS) % 2 === 0 ? '|' : '';
   drawField(ctx, game, str(game, 'name', 'Name'), m.name, 'name', FIELD_Y, m.focus === 'name' ? caret : '', mx, my);
+  const heroNames = game.theme && game.theme.flavor && game.theme.flavor.heroNames;
+  if (heroNames && heroNames.length) {
+    const r = { x: (uiLayout.viewW - FIELD_W) / 2 + 30 - RANDOM_NAME_W - 64, y: FIELD_Y, w: RANDOM_NAME_W, h: FIELD_H };
+    drawButton(ctx, r, '?', { game, hover: pointInRect(mx, my, r), size: 13 });
+    registerHit(game, r, { kind: 'menuRandomName', count: heroNames.length });
+  }
   drawField(ctx, game, str(game, 'seed', 'Seed'), m.seed, 'seed', FIELD_Y + FIELD_H + FIELD_GAP, m.focus === 'seed' ? caret : '', mx, my);
 
   const diffNames = (game.balance && game.balance.monsters && game.balance.monsters.difficultyNames) || ['normal', 'veteran', 'elite'];
@@ -427,8 +429,83 @@ export function drawMainMenu(ctx, game) {
   drawButton(ctx, loadR, str(game, 'load', 'Load game'), { game, hover: pointInRect(mx, my, loadR), size: 15 });
   registerHit(game, startR, { kind: 'menuStart' });
   registerHit(game, loadR, { kind: 'menuAction', action: { type: 'load', slot: 0 } });
-  drawText(ctx, str(game, 'menuHint', 'Click a field to type. Enter starts.'), uiLayout.viewW / 2, MENU_BUTTONS_Y + BIG_BUTTON_H + 14, { align: 'center', size: 11, color: pal.textDim, game });
+  const hint = m.hardcore ? str(game, 'permadeathHint', 'Permadeath: if this hero dies, the save is erased.') : str(game, 'menuHint', 'Click a field to type. Enter starts.');
+  drawText(ctx, hint, uiLayout.viewW / 2, MENU_BUTTONS_Y + BIG_BUTTON_H + 12, { align: 'center', size: 11, color: m.hardcore ? pal.danger : pal.textDim, game });
   if (meta.version) drawText(ctx, `v${meta.version}`, uiLayout.viewW - 10, uiLayout.viewH - 18, { align: 'right', size: 10, color: pal.textDim, game });
+}
+
+/** Accent colour for a class: look.accent, else a lightened body colour. */
+function classAccent(c, pal) {
+  const look = c.look || {};
+  return look.accent || (look.bodyColor ? lighten(look.bodyColor, 0.35) : pal.accent);
+}
+
+/** The skills a class is handed, in order: start skill, then level gifts by level. */
+function classGiftSkills(game, c) {
+  const out = [];
+  if (c.startSkill) out.push({ id: c.startSkill, level: 1 });
+  Object.entries(c.levelSkills || {}).map(([l, id]) => ({ id, level: Number(l) })).sort((a, b) => a.level - b.level).forEach((g) => out.push(g));
+  for (const id of c.skillPool || []) if (!out.some((g) => g.id === id)) out.push({ id, level: null });
+  return out.map((g) => ({ ...g, def: (game.theme.skills || []).find((sk) => sk.id === g.id) })).filter((g) => g.def);
+}
+
+function drawClassCard(ctx, game, c, r, sel, mx, my) {
+  const pal = palette(game);
+  const accent = classAccent(c, pal);
+  const hover = pointInRect(mx, my, r);
+  drawPanel(ctx, r, { game, alpha: sel ? 1 : 0.85 });
+  if (sel) fillRect(ctx, r, accent, 0.07);
+  if (sel || hover) {
+    ctx.strokeStyle = sel ? accent : pal.text;
+    ctx.lineWidth = sel ? 2 : 1;
+    ctx.strokeRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
+  }
+  const cx = r.x + r.w / 2;
+  const inner = r.w - 20;
+  drawText(ctx, c.name || c.id, cx, r.y + 8, { align: 'center', size: 16, weight: 'bold', color: accent, game, maxW: inner });
+  if (c.epithet) drawText(ctx, c.epithet, cx, r.y + 28, { align: 'center', font: `italic ${fontAt(game, 11)}`, color: pal.textDim, game, maxW: inner });
+
+  // Portrait: dark well with a soft light behind the hero.
+  const pr = { x: r.x + CARD_PORTRAIT.pad, y: r.y + CARD_PORTRAIT.y, w: r.w - CARD_PORTRAIT.pad * 2, h: CARD_PORTRAIT.h };
+  fillRect(ctx, pr, '#000', 0.45);
+  const glow = ctx.createRadialGradient(cx, pr.y + pr.h * 0.55, 2, cx, pr.y + pr.h * 0.55, pr.h);
+  glow.addColorStop(0, mix(accent, '#000000', 0.55));
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pr.x, pr.y, pr.w, pr.h); ctx.clip();
+  ctx.globalAlpha = sel ? 0.9 : 0.55;
+  ctx.fillStyle = glow; ctx.fillRect(pr.x, pr.y, pr.w, pr.h);
+  ctx.restore();
+  const look = c.look || {};
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pr.x, pr.y, pr.w, pr.h); ctx.clip();
+  drawActor(ctx, cx, r.y + CARD_ACTOR_FEET_Y, { silhouette: look.silhouette || 'bulky', bodyColor: look.bodyColor || pal.textDim, trimColor: look.trimColor || pal.panelBorder }, { dir: 0, anim: 'stand', scale: CARD_ACTOR_SCALE });
+  ctx.restore();
+
+  const font = fontAt(game, 11);
+  const blurb = wrapText(ctx, c.blurb || '', inner, font);
+  const shown = blurb.slice(0, CARD_BLURB_LINES);
+  if (blurb.length > CARD_BLURB_LINES) shown[CARD_BLURB_LINES - 1] += ` ${blurb[CARD_BLURB_LINES]}`; // ellipsized by maxW
+  shown.forEach((ln, j) => drawText(ctx, ln, cx, r.y + CARD_BLURB_Y + j * 13, { align: 'center', size: 11, color: pal.textDim, game, maxW: inner }));
+
+  // Stat boxes: value over label.
+  const b = c.base || {};
+  const stats = [['str', 'strShort', 'Str'], ['mag', 'magShort', 'Mag'], ['dex', 'dexShort', 'Dex'], ['vit', 'vitShort', 'Vit']];
+  const bw = (inner - 6) / 4;
+  stats.forEach(([k, key, fb], j) => {
+    const br = { x: r.x + 10 + j * (bw + 2), y: r.y + CARD_STATS_Y, w: bw, h: CARD_STATS_H };
+    fillRect(ctx, br, '#000', 0.35);
+    drawText(ctx, String(b[k] || 0), br.x + bw / 2, br.y + 2, { align: 'center', size: 12, weight: 'bold', color: pal.gold, game });
+    drawText(ctx, str(game, key, fb).toUpperCase(), br.x + bw / 2, br.y + 15, { align: 'center', size: 8, color: pal.textDim, game, maxW: bw - 2 });
+  });
+
+  // Skills the class gets: name (+ level it arrives) over a one-line blurb.
+  classGiftSkills(game, c).slice(0, CARD_SKILLS_MAX).forEach((g, j) => {
+    const y = r.y + CARD_SKILLS_Y + j * CARD_SKILL_ROW;
+    drawText(ctx, g.def.name || g.id, r.x + 10, y, { size: 11, weight: 'bold', color: pal.text, game, maxW: inner - 34 });
+    if (g.level && g.level > 1) drawText(ctx, `${str(game, 'levelShort', 'Lv')} ${g.level}`, r.x + r.w - 10, y, { align: 'right', size: 10, color: pal.textDim, game });
+    if (g.def.blurb) drawText(ctx, g.def.blurb, r.x + 10, y + 12, { size: 10, color: pal.textDim, game, maxW: inner });
+  });
 }
 
 function drawField(ctx, game, label, value, field, y, caret, mx, my) {

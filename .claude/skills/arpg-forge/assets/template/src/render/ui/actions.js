@@ -688,6 +688,17 @@ function mainMenuClick(game, h, button) {
       else m.difficulty = ((m.difficulty | 0) + 1) % Math.max(1, h.count | 0);
       play(game, 'click');
       return;
+    case 'menuRandomName': {
+      const names = (game.theme.flavor && game.theme.flavor.heroNames) || [];
+      if (names.length) {
+        const cur = names.indexOf(m.name);
+        let k = Math.floor(Math.random() * names.length);
+        if (names.length > 1 && k === cur) k = (k + 1) % names.length;
+        m.name = names[k];
+      }
+      play(game, 'click');
+      return;
+    }
     case 'menuStart':
       startGame(game);
       return;

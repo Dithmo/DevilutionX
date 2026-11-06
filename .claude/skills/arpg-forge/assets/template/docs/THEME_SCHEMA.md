@@ -58,7 +58,8 @@ maxDepth = last tier's depths[1]
   weaponPref: 'melee' | 'ranged' | 'caster',
   startKit: [ { baseId, count? } ], startSkill: skillId|null,
   skillPool: [skillId] (skills this class can learn from tomes), levelSkills: { [level]: skillId },
-  look: { silhouette: 'bulky'|'lean'|'robed', bodyColor, trimColor } }
+  epithet: string,                       // short subtitle on the class card ('Cutlass Brawler')
+  look: { silhouette: 'bulky'|'lean'|'robed', bodyColor, trimColor, accent? } }   // accent: name colour on the card (else lightened bodyColor)
 ```
 
 ## MonsterType
@@ -123,6 +124,7 @@ Quest = { id, name, tier, depth, type: 'killBoss'|'fetch'|'clearArea'|'collectN'
 
 ```js
 flavor = { deathLines: [string], loadingTips: [string], intro: [string], outro: [string], welcome: string,
+           heroNames?: [string],   // the title screen's random-name button picks from these (hidden if absent)
            levelName: (depth, tierName) => string }
 SynthDescriptor = { type: 'sine'|'square'|'saw'|'triangle'|'noise', freq, slide?, dur, decay?, volume? }
 strings = { life: 'Life', mana: 'Mana', gold: 'Gold', potion: 'Potion', skills: 'Skills', town: 'Town', ... }
