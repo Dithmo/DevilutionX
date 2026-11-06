@@ -37,7 +37,7 @@ const WARDEN = {
   startSkill: 'cleave',
   skillPool: ['cleave', 'stone_skin', 'mend', 'return_home', 'reveal', 'raise_ward'],
   levelSkills: { 4: 'stone_skin', 8: 'mend' },
-  look: { silhouette: 'bulky', bodyColor: '#b08a5a', trimColor: '#4a3a2a' },
+  look: { silhouette: 'bulky', bodyColor: '#b08a5a', trimColor: '#4a3a2a', weapon: 'sword', offhand: 'shield', helm: 'full', armor: 'plate', cloak: 'short', cloakColor: '#5a2a22', metalColor: '#c4c8cc' },
 };
 
 const STALKER = {
@@ -61,7 +61,7 @@ const STALKER = {
   startSkill: 'volley',
   skillPool: ['volley', 'frost_shard', 'blink', 'homing_spite', 'mend', 'return_home', 'reveal', 'stone_skin'],
   levelSkills: { 4: 'blink', 8: 'homing_spite' },
-  look: { silhouette: 'lean', bodyColor: '#6f8a5a', trimColor: '#2a3324' },
+  look: { silhouette: 'lean', bodyColor: '#6f8a5a', trimColor: '#2a3324', weapon: 'bow', helm: 'hood', armor: 'light', cloak: 'short', cloakColor: '#3a4a2e' },
 };
 
 const HEXWRIGHT = {
@@ -86,7 +86,7 @@ const HEXWRIGHT = {
   skillPool: ['firebolt', 'frost_shard', 'arc_lance', 'nova', 'chain_arc', 'flame_wall', 'ember_pool',
     'mend', 'stone_skin', 'blink', 'raise_ward', 'homing_spite', 'return_home', 'reveal'],
   levelSkills: { 3: 'frost_shard', 6: 'arc_lance', 10: 'nova' },
-  look: { silhouette: 'robed', bodyColor: '#5a5a8a', trimColor: '#c8b060' },
+  look: { silhouette: 'robed', bodyColor: '#5a5a8a', trimColor: '#c8b060', weapon: 'staff', helm: 'hood', armor: 'cloth', cloakColor: '#34345a' },
 };
 
 export default [WARDEN, STALKER, HEXWRIGHT];

@@ -16,6 +16,7 @@ import { createAudio } from './core/audio.js';
 import { createRng } from './core/rng.js';
 import { createCamera, renderPos } from './render/camera.js';
 import { renderWorld, getTileAtScreen, getEntityAtScreen } from './render/iso.js';
+import { setRenderScale } from './render/draw_util.js';
 import { renderUi, updateUi, uiHandleClick, uiHandleKey, uiHitTest, openPanel, closeAll, openVendor, addMessage } from './render/ui.js';
 import { computeFov, MAX_LIGHT } from './world/fov.js';
 import { generateLevel, levelDepsReady } from './world/levelgen/index.js';
@@ -479,6 +480,9 @@ export function render(game, alpha) {
   const { ctx, camera } = game;
   if (!ctx) return;
   game.renderAlpha = alpha;
+  const S = game.renderScale || 1;
+  ctx.setTransform(S, 0, 0, S, 0, 0);
+  ctx.imageSmoothingQuality = 'high';
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   if (game.mode !== 'menu' && game.level && game.player && !game.ui.loading) {
@@ -564,8 +568,7 @@ function makeDebugApi(game, loop) {
 function fitCanvas(canvas) {
   const w = window.innerWidth || VIEW_W;
   const h = window.innerHeight || VIEW_H;
-  let scale = Math.min(w / VIEW_W, h / VIEW_H);
-  if (scale >= 1) scale = Math.floor(scale);
+  const scale = Math.min(w / VIEW_W, h / VIEW_H); // hi-res backing store, so fractional scales stay sharp
   canvas.style.width = `${Math.floor(VIEW_W * scale)}px`;
   canvas.style.height = `${Math.floor(VIEW_H * scale)}px`;
 }
@@ -577,7 +580,15 @@ function urlParam(name) {
 async function boot() {
   const canvas = document.getElementById(CANVAS_ID);
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  // Hi-res backing store: logical size stays VIEW_W x VIEW_H, pixels are RENDER_SCALE x that.
+  const scale = Math.max(2, Math.min(3, Math.ceil(window.devicePixelRatio || 1)));
+  setRenderScale(scale);
+  canvas.width = VIEW_W * scale;
+  canvas.height = VIEW_H * scale;
+  canvas.logicalW = VIEW_W;
+  canvas.logicalH = VIEW_H;
   const game = createGame(canvas);
+  game.renderScale = scale;
   const loop = createLoop({ tickRate: TICK_RATE, update: () => update(game), render: (alpha) => render(game, alpha) });
   fitCanvas(canvas);
   window.addEventListener('resize', () => fitCanvas(canvas));

@@ -13,7 +13,11 @@ data/themes/<id>/
                   uniqueMonsters, items, skills, objects, altarEffects, npcs, quests, flavor, sfx, strings }
   meta.js         { id, title, tagline, version }
   palette.js      { bg, panel, panelBorder, text, textDim, accent, hp, mp, xp, gold,
-                    rarity: { normal, magic, rare, unique }, danger, good, light }
+                    rarity: { normal, magic, rare, unique }, danger, good, light,
+                    // optional HUD chrome + lighting (derived when absent):
+                    metal?, metalLight?, metalDark?, metalEdge?, trim?, trimGlow?: 0..1, recess?,
+                    lifeColor?, manaColor?, ornament?: 'organic'|'angular',
+                    fogColor?, fogAlpha?, emberColor?, moteColor?, ambientLevel? (town, default 0.42) }
   tilesets.js     [ Tileset ]
   world.js        { tiers: [ Tier ], town: Town, maxDepth }
   classes.js      [ PlayerClass ]
@@ -34,8 +38,20 @@ data/themes/<id>/
 { id, name, generator: 'rooms' | 'caves' | 'halls' | 'maze',
   floors: [color×3..4], walls: [color×2..3], accent: color, lightTint: color, voidColor: color,
   doorColor: color, decor: ['pillar','rubble','grate','vent','crate','bones','puddle'] (subset),
-  ambient: sfxName|null }
+  ambient: sfxName|null,
+  art?: TileArt }
+
+TileArt = {   // every key optional; with none you get flagstone, masonry and torches
+  floorStyle?: 'flagstone'|'cobble'|'concrete'|'plate'|'grate'|'water', floorStyles?: [style per floors[i]],
+  wallStyle?: 'masonry'|'rough'|'panel', wallStyles?: [style per walls[i]],
+  groutDark?: 0.22, grout?: color, cracks?: 0.16, grime?: 0.6, stain?: color,
+  rust?, hazard?, metal?: color, runeColor?: color, runes?: 0.22, pilasterEvery?: 4,
+  features?: { niche, runes, damaged, vent, screen },          // weights
+  lamp?: { kind: 'torch'|'neon', color, colors?: [color], chance: .3, spacing: 4, radius: 135, intensity: 1 },
+  wallDecor?: ['banner','chain','cable','sign'], wallDecorChance?: .14, banner?: [cloth, trim],
+  bone?, wood?: color, rubble?: .12, stones?: .035, poles?: .02, decalChance?: .03 }
 ```
+See `references/visual-quality.md` (in the skill) for what each knob does.
 
 ## Tier / Town
 
@@ -43,7 +59,8 @@ data/themes/<id>/
 Tier = { id, name, tilesetId, depths: [lo, hi], monsterLevel: [lo, hi], bossId: uniqueMonsterId|null,
          monsterPool: [monsterTypeId], objectPool: [objectTypeId], themedRooms: ['treasure','library','shrine','armory','barrel','torture','monsterDen'] }
 Town = { name, size: [w, h], layout: 'plaza' | 'street' | 'ring', npcPlacements: [{ npcId, x, y }],
-         dungeonEntrance: {x, y}, decor: [{kind, x, y}], groundColors: [color×3], buildingColors: [color×3] }
+         dungeonEntrance: {x, y}, decor: [{kind, x, y}], groundColors: [color×3], buildingColors: [color×3],
+         art?: TileArt, decorKinds?: [decal kind], doorColor?: color }
 maxDepth = last tier's depths[1]
 ```
 
@@ -59,7 +76,15 @@ maxDepth = last tier's depths[1]
   startKit: [ { baseId, count? } ], startSkill: skillId|null,
   skillPool: [skillId] (skills this class can learn from tomes), levelSkills: { [level]: skillId },
   epithet: string,                       // short subtitle on the class card ('Cutlass Brawler')
-  look: { silhouette: 'bulky'|'lean'|'robed', bodyColor, trimColor, accent? } }   // accent: name colour on the card (else lightened bodyColor)
+  look: { silhouette: 'bulky'|'lean'|'robed', bodyColor, trimColor, accent?, ...ActorLook } }   // accent: name colour on the card (else lightened bodyColor)
+
+ActorLook = {   // optional on classes, monsters, uniques and NPCs; defaults come from the silhouette
+  weapon?: 'sword'|'katana'|'greatsword'|'dagger'|'axe'|'hammer'|'mace'|'spear'|'staff'|'wand'|'pistol'|'rifle'|'bow'|'claws'|'none',
+  offhand?: 'shield'|'buckler'|'orb'|'pistol'|'dagger'|'none',
+  helm?: 'full'|'visor'|'open'|'hood'|'horned'|'crest'|'bare', armor?: 'plate'|'light'|'cloth'|'none',
+  cloak?: 'none'|'short'|'long'|'tattered', glow?: true|color,
+  cloakColor?, metalColor?, skinColor?, accentColor?, underColor?: color,
+  legs?: 4|6|8 (crawler), wings?: 'membrane'|'rotor' (flier) }
 ```
 
 ## MonsterType
@@ -72,7 +97,7 @@ maxDepth = last tier's depths[1]
   flags: ['undead','flies','noLoot','noHitRecover','ranged','opensDoors','leader'],
   pack: { size: [lo,hi], leader: boolean }, intelligence: 0..3,
   missile: { archetype, element, dmg: [lo,hi] }|null, special: string|null,
-  look: { silhouette, bodyColor, trimColor, size: 1 }, sfx: { attack, hit, die } }
+  look: { silhouette, bodyColor, trimColor, size: 1, ...ActorLook }, sfx: { attack, hit, die } }
 UniqueMonster = { id, name, baseTypeId, level, hp, dmg: [lo,hi], ai?, resist?, flags?, dropUniqueId?, look, packType: 'none'|'followers'|'elite' , questId|null, depth }
 ```
 
@@ -103,7 +128,7 @@ Consumable = { id, name, kind: 'potion'|'scroll'|'tome'|'elixir'|'key'|'misc', e
 
 ```js
 ObjectType = { id, name, kind: 'chest'|'door'|'breakable'|'altar'|'lever'|'sign'|'trap'|'fountain'|'bookstand',
-               tilesets: [tilesetId]|'all', solid, blocksLight, look: { color, shape }, lootTable?: { count: [lo,hi], goodChance },
+               tilesets: [tilesetId]|'all', solid, blocksLight, look: { color, color2?, shape? }, lootTable?: { count: [lo,hi], goodChance },
                trapChance?: number, text?: string }
 AltarEffect = { id, text, weight, apply: 'healFull'|'manaFull'|'swapStats'|'randomResist'|'dropGold'|'identifyAll'|'curseItem'|'blessItem'|'levelUpSkill'|'revealMap'|'spawnMonsters'|'teleport'|'buffDamage'|'drainMana', params?: {} }
 ```

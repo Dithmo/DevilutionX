@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Model sheet</title>
+<style>body{margin:0;background:#15131a;color:#ccc;font:11px sans-serif}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+// Model sheet: every class / NPC / monster look in several directions and anims, every
+// object kind and state, item glyphs and missiles. ?theme=<theme id> &part=actors|monsters|objects|items &zoom=2
+import { setRenderScale } from '../src/render/draw_util.js';
+import activeTheme from '../data/active_theme.js';
+import { drawActor } from '../src/render/draw_actor.js';
+import { drawObject } from '../src/render/draw_objects.js';
+import { drawItemGlyph, drawMissile } from '../src/render/draw_items.js';
+
+const q = new URLSearchParams(location.search);
+const themeId = q.get('theme') || activeTheme;
+const part = q.get('part') || 'actors';
+const Z = Number(q.get('zoom') || 2);
+const theme = (await import(`../data/themes/${themeId}/index.js`)).default;
+setRenderScale(Z);
+const cv = document.getElementById('c');
+const W = 1400;
+const H = Number(q.get('h') || 1800);
+cv.width = W * Z; cv.height = H * Z; cv.style.width = W + 'px';
+const ctx = cv.getContext('2d');
+ctx.scale(Z, Z);
+ctx.fillStyle = '#2a2730'; ctx.fillRect(0, 0, W, H);
+// faint iso floor so outlines and shadows read
+ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+for (let x = -H * 2; x < W; x += 64) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + H * 2, H); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x + H * 2, 0); ctx.lineTo(x, H); ctx.stroke(); }
+const label = (t, x, y) => { ctx.fillStyle = '#bbb'; ctx.font = '10px sans-serif'; ctx.fillText(t, x, y); };
+const time = Number(q.get('t') || 0);
+
+let y = 20;
+function row(title, entries, cell = 84, rowH = 120, feet = 100) {
+  label(title, 8, y + 10);
+  let x = 60;
+  for (const e of entries) {
+    if (x + cell > W) { x = 60; y += rowH; }
+    e(x + cell / 2, y + feet);
+    x += cell;
+  }
+  y += rowH;
+}
+const ANIMS = [['stand', 0], ['walk', 1], ['walk', 5], ['attack', 1], ['attack', 3], ['attack', 4], ['attack', 5], ['cast', 4], ['hit', 0], ['death', 3], ['death', 9]];
+if (part === 'actors') {
+  for (const c of theme.classes) {
+    row(`${c.id} dirs`, [0, 1, 2, 3, 4, 5, 6, 7].map((d) => (x, yy) => drawActor(ctx, x, yy, c.look, { dir: d, anim: 'stand' })), 80, 118);
+    row(`${c.id} anims`, ANIMS.map(([a, f]) => (x, yy) => drawActor(ctx, x, yy, c.look, { dir: 7, anim: a, frame: f })), 100, 118);
+  }
+  row('npcs', theme.npcs.map((n) => (x, yy) => { drawActor(ctx, x, yy, n.look, { dir: 1, anim: 'stand' }); label(n.id || '', x - 30, yy + 14); }), 100, 125);
+  row('walk cycle dir1', [0, 1, 2, 3, 4, 5, 6, 7].map((f) => (x, yy) => drawActor(ctx, x, yy, theme.classes[0].look, { dir: 1, anim: 'walk', frame: f })), 80, 118);
+  row('attack dir 3', [0, 1, 2, 3, 4, 5, 6, 7].map((f) => (x, yy) => drawActor(ctx, x, yy, theme.classes[0].look, { dir: 3, anim: 'attack', frame: f })), 80, 118);
+} else if (part === 'monsters') {
+  const seen = new Set();
+  const base = theme.monsters.filter((m) => { const k = m.id.replace(/_\d$/, ''); if (seen.has(k)) return false; seen.add(k); return true; });
+  const uniques = theme.uniqueMonsters || [];
+  for (const m of [...base, ...uniques]) {
+    const look = m.look.silhouette ? m.look : { ...(theme.monsters.find((b) => b.id === m.baseTypeId) || {}).look, ...m.look };
+    const big = (look.size || 1) > 1.3 || look.silhouette === 'tall';
+    const cell = big ? 130 : 92;
+    label(`${m.id} (${look.silhouette} ${look.size || 1})`, 8, y + 10);
+    let x = 120;
+    const feet = big ? 175 : 100;
+    for (const [a, f, d] of [['stand', 0, 0], ['stand', 0, 2], ['walk', 2, 1], ['walk', 6, 5], ['attack', 4, 7], ['cast', 4, 1], ['hit', 0, 7], ['death', 9, 1]]) {
+      drawActor(ctx, x, y + feet, look, { dir: d, anim: a, frame: f });
+      x += cell;
+      if (x > W - 40) break;
+    }
+    y += big ? 195 : 118;
+    if (y > H - 100) break;
+  }
+} else if (part === 'objects') {
+  const STATES = { chest: ['closed', 'open'], door: ['closed', 'open'], breakable: ['intact', 'broken'], altar: ['idle', 'active'], lever: ['off', 'on'], stairs: ['down', 'up'] };
+  const objs = theme.objects;
+  label('objects', 8, y + 10);
+  let x = 70;
+  for (const o of objs) {
+    for (const s of STATES[o.kind] || ['']) {
+      for (const orient of o.kind === 'door' ? ['left', 'right'] : ['left']) {
+        if (x > W - 60) { x = 70; y += 130; }
+        drawObject(ctx, x, y + 100, o.kind, { ...o.look, orient, frame: time }, s, 15);
+        label(`${o.id} ${s} ${o.kind === 'door' ? orient : ''}`, x - 34, y + 122);
+        x += 96;
+      }
+    }
+  }
+  y += 140;
+  label('brazier/lamp/portal over time', 8, y + 10);
+  x = 70;
+  const anim = objs.filter((o) => ['brazier', 'lamp', 'portal'].includes(o.look.shape) || o.kind === 'portal');
+  for (let t = 0; t < 6; t++) for (const o of anim) {
+    if (x > W - 60) { x = 70; y += 130; }
+    drawObject(ctx, x, y + 100, o.kind, { ...o.look, frame: t * 7 }, '', 15, t * 0.37);
+    x += 96;
+  }
+  y += 140;
+  label('banner (shape)', 8, y + 10);
+  drawObject(ctx, 100, y + 100, 'sign', { color: objs[0].look.color, color2: objs[0].look.color2, shape: 'banner' }, '', 15);
+  drawObject(ctx, 200, y + 100, 'sign', { color: '#3a2a2a', color2: '#a03030', shape: 'banner' }, '', 15);
+} else {
+  label('items 24px / 48px', 8, y + 10);
+  const glyphs = ['blade', 'axe', 'mace', 'bow', 'gun', 'staff', 'wand', 'shield', 'helm', 'chest', 'boots', 'gloves', 'belt', 'ring', 'amulet', 'flask', 'scroll', 'book', 'gem', 'key', 'coin', 'generic'];
+  let x = 70;
+  const seen = new Map();
+  for (const it of theme.items.bases || theme.items) if (it.look && !seen.has(it.look.glyph)) seen.set(it.look.glyph, it.look);
+  for (const gname of glyphs) {
+    const look = seen.get(gname) || { glyph: gname, color: '#c8c8d0', color2: '#6a5a40' };
+    ctx.fillStyle = '#100e14'; ctx.fillRect(x - 15, y + 30, 30, 30);
+    drawItemGlyph(ctx, x, y + 45, look, 24);
+    ctx.fillStyle = '#100e14'; ctx.fillRect(x - 28, y + 70, 56, 56);
+    drawItemGlyph(ctx, x, y + 98, look, 48);
+    drawItemGlyph(ctx, x, y + 160, look, 20);
+    label(gname, x - 15, y + 185);
+    x += 60;
+    if (x > W - 40) { x = 70; y += 200; }
+  }
+  y += 220;
+  label('missiles', 8, y + 10);
+  x = 80;
+  for (const sk of theme.skills) {
+    for (const d of [0, 2, 5]) {
+      const shape = { bolt: 'bolt', arrow: 'arrow', orb: 'orb', shard: 'shard', ring: 'ring', beam: 'bolt', flame: 'orb', swirl: 'ring', totem: 'orb', cross: 'orb' }[sk.look.glyph] || 'bolt';
+      drawMissile(ctx, x, y + 50, { ...sk.look, shape, size: 5 }, d);
+      x += 40;
+    }
+    x += 10;
+    if (x > W - 120) { x = 80; y += 80; }
+  }
+}
+window.__done = true;
+</script>
+</body>
+</html>

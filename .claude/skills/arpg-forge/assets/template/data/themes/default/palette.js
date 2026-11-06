@@ -14,4 +14,11 @@ export default {
   danger: '#d04030',
   good: '#60b060',
   light: '#f0d8a0',
+  // HUD chrome (optional keys, see src/render/ui/chrome.js deriveChrome)
+  metal: '#3d3a37', // dark forged iron
+  trim: '#b98d45', // aged gold inlay
+  trimGlow: 0,
+  lifeColor: '#c01e1e',
+  manaColor: '#1d93a8',
+  ornament: 'organic',
 };

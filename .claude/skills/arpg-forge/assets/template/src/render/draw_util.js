@@ -22,6 +22,16 @@ const FALLBACK_RGB = [128, 128, 128];
 const TAU = Math.PI * 2;
 
 const spriteCache = new Map();
+
+/**
+ * Backing-store scale. The game works in logical 960x540 pixels; the canvas and every cached
+ * sprite are rasterised at RENDER_SCALE× so art stays crisp when the page scales it up.
+ * main.js sets it once at boot (before anything is cached).
+ */
+export let RENDER_SCALE = 1;
+export function setRenderScale(s) {
+  if (s !== RENDER_SCALE) { RENDER_SCALE = s; spriteCache.clear(); }
+}
 const colorCache = new Map();
 
 /** Create an offscreen canvas of the given size. */
@@ -44,18 +54,20 @@ export function cached(key, w, h, ax, ay, draw) {
   let entry = spriteCache.get(key);
   if (entry) return entry;
   if (spriteCache.size >= CACHE_LIMIT) spriteCache.clear();
-  const canvas = makeCanvas(w, h);
+  const S = RENDER_SCALE;
+  const canvas = makeCanvas(Math.ceil(w * S), Math.ceil(h * S));
   const c = canvas.getContext('2d');
+  c.scale(S, S);
   c.translate(ax, ay);
   draw(c);
-  entry = { canvas, ax, ay };
+  entry = { canvas, ax, ay, w, h };
   spriteCache.set(key, entry);
   return entry;
 }
 
 /** Draw a cached entry with its anchor at (sx, sy). */
 export function blit(ctx, entry, sx, sy) {
-  ctx.drawImage(entry.canvas, sx - entry.ax, sy - entry.ay);
+  ctx.drawImage(entry.canvas, sx - entry.ax, sy - entry.ay, entry.w, entry.h);
 }
 
 /** Drop every cached sprite (e.g. on theme change). */

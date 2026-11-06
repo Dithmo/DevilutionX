@@ -6,7 +6,7 @@ export default [
   {
     id: 'n_sister_oda', name: 'Sister Oda', title: 'Keeper of the Infirmary', role: 'healer',
     vendorType: null, services: ['heal'],
-    look: { silhouette: 'robed', bodyColor: '#c8c0b0', trimColor: '#6a3a3a' },
+    look: { silhouette: 'robed', bodyColor: '#c8c0b0', trimColor: '#6a3a3a', weapon: 'none', helm: 'open' },
     greeting: [
       'Sit. Breathe. You are leaking on my floor, but sit.',
       'Back again. Either you are careful or you are lucky, and I do not stock luck.',
@@ -29,7 +29,7 @@ export default [
   {
     id: 'n_brann', name: 'Brann', title: 'Smith of the Watch', role: 'smith',
     vendorType: 'weapons', vendorTypes: ['weapons', 'armor'], services: ['repair'],
-    look: { silhouette: 'bulky', bodyColor: '#6a5a4a', trimColor: '#c87a30' },
+    look: { silhouette: 'bulky', bodyColor: '#6a5a4a', trimColor: '#c87a30', weapon: 'hammer', helm: 'bare', armor: 'light', cloak: 'none' },
     greeting: [
       'Steel is on the left, iron on the right, and complaints go out the door.',
       'If it is bent, I can fix it. If it is broken, I can sell you another.',
@@ -52,7 +52,7 @@ export default [
   {
     id: 'n_mirelle', name: 'Mirelle', title: 'Arcanist of the Vigil', role: 'arcanist',
     vendorType: 'magic', vendorTypes: ['magic', 'potions'], services: ['identify', 'recharge'],
-    look: { silhouette: 'robed', bodyColor: '#3a3a6a', trimColor: '#a0c0e0' },
+    look: { silhouette: 'robed', bodyColor: '#3a3a6a', trimColor: '#a0c0e0', weapon: 'staff', helm: 'hood' },
     greeting: [
       'Touch nothing that glows. Touch nothing that does not glow, either, until I have looked at it.',
       'Scrolls on the shelf, draughts in the crate, questions in the box by the door.',
@@ -75,7 +75,7 @@ export default [
   {
     id: 'n_captain_rook', name: 'Captain Rook', title: 'Commander of the Watch', role: 'questgiver',
     vendorType: null, services: [],
-    look: { silhouette: 'bulky', bodyColor: '#2a3a4a', trimColor: '#c8963c' },
+    look: { silhouette: 'bulky', bodyColor: '#2a3a4a', trimColor: '#c8963c', weapon: 'spear', helm: 'open', armor: 'plate', cloak: 'long', cloakColor: '#3a2a20' },
     greeting: [
       'You are standing on the last paid garrison north of anywhere. Act like it.',
       'Report. Short words. I have had a long year.',
@@ -103,7 +103,7 @@ export default [
   {
     id: 'n_old_fen', name: 'Old Fen', title: 'Keeper of Stories', role: 'storyteller',
     vendorType: null, services: [],
-    look: { silhouette: 'lean', bodyColor: '#5a5a50', trimColor: '#9a8a60' },
+    look: { silhouette: 'lean', bodyColor: '#5a5a50', trimColor: '#9a8a60', weapon: 'none', helm: 'hood' },
     greeting: [
       'Sit, if your knees still bend. Mine remember when they did.',
       'You want a story or a warning. They cost the same and come out the same.',
@@ -126,7 +126,7 @@ export default [
   {
     id: 'n_pip', name: 'Pip', title: 'Scavenger', role: 'wanderer',
     vendorType: 'junk', services: [],
-    look: { silhouette: 'lean', bodyColor: '#7a6a50', trimColor: '#3a5a3a' },
+    look: { silhouette: 'lean', bodyColor: '#7a6a50', trimColor: '#3a5a3a', weapon: 'dagger', helm: 'hood', cloak: 'short' },
     greeting: [
       'Found it, cleaned it, mostly. Have a look.',
       'Everything here came up from below and nothing here is haunted. Much.',

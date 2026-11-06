@@ -38,8 +38,8 @@ const CARD_H = 262;
 const CARD_GAP = 14;
 const CARD_Y = 90;
 const CARD_PORTRAIT = { y: 44, h: 70, pad: 8 };
-const CARD_ACTOR_SCALE = 1.5;
-const CARD_ACTOR_FEET_Y = 104;
+const CARD_ACTOR_SCALE = 0.95;
+const CARD_ACTOR_FEET_Y = 108;
 const CARD_BLURB_Y = 120;
 const CARD_BLURB_LINES = 2;
 const CARD_STATS_Y = 150;
@@ -479,7 +479,7 @@ function drawClassCard(ctx, game, c, r, sel, mx, my) {
   const look = c.look || {};
   ctx.save();
   ctx.beginPath(); ctx.rect(pr.x, pr.y, pr.w, pr.h); ctx.clip();
-  drawActor(ctx, cx, r.y + CARD_ACTOR_FEET_Y, { silhouette: look.silhouette || 'bulky', bodyColor: look.bodyColor || pal.textDim, trimColor: look.trimColor || pal.panelBorder }, { dir: 0, anim: 'stand', scale: CARD_ACTOR_SCALE });
+  drawActor(ctx, cx, r.y + CARD_ACTOR_FEET_Y, { ...look, silhouette: look.silhouette || 'bulky', bodyColor: look.bodyColor || pal.textDim, trimColor: look.trimColor || pal.panelBorder }, { dir: 0, anim: 'stand', scale: CARD_ACTOR_SCALE });
   ctx.restore();
 
   const font = fontAt(game, 11);

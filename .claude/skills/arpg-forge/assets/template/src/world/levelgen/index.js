@@ -51,7 +51,15 @@ export function paletteFor(tileset, cfg = LEVELS.palette) {
   if (tileset.water) floors.push([tileset.water, mulColor(tileset.water, cfg.waterSpeckle)]);
   const walls = tileset.walls.map((c) => [c, mulColor(c, cfg.wallRight), mulColor(c, cfg.wallTop)]);
   const accent = tileset.accent || DEG_WHITE;
-  return { floors, walls, stairs: { color: accent, color2: mulColor(accent, cfg.stairsLight) }, door: tileset.doorColor, void: tileset.voidColor, lightTint: tileset.lightTint };
+  // Optional render knobs (render/draw_tiles.js resolveArt, render/draw_decor.js): the tileset's `art`
+  // block plus the existing decor list / accent / door colour. Water is always drawn as water.
+  const art = { accent, door: tileset.doorColor, ...(tileset.art || {}), decor: tileset.decor || (tileset.art && tileset.art.decor) || [] };
+  if (tileset.water) {
+    const fs = [...(art.floorStyles || tileset.floors.map(() => art.floorStyle || 'flagstone'))];
+    fs[floors.length - 1] = 'water';
+    art.floorStyles = fs;
+  }
+  return { floors, walls, stairs: { color: accent, color2: mulColor(accent, cfg.stairsLight) }, door: tileset.doorColor, void: tileset.voidColor, lightTint: tileset.lightTint, art };
 }
 
 /** @returns {{tier:object, index:number}|null} tier whose depth band contains `depth` */

@@ -1,16 +1,23 @@
 /**
- * Bottom control panel: life globe (left), mana globe (right), belt of 8
- * slots centre-bottom, info box centre-top, panel buttons in two columns,
- * four skill hotkey slots plus the readied (right-click) skill button, gold,
- * a thin XP strip with the level number above the panel, and the fading
- * message log just above the panel on the left.
+ * Bottom control panel, an ornamented forged-metal bar rather than a full-width
+ * rectangle: life globe (left) and mana globe (right) in horned sockets, a
+ * central row of recessed slots (gold plaque, 8 belt slots, 4 skill hotkeys,
+ * the readied right-click skill in a raised bezel), panel-button tabs on the
+ * bar's top edge either side of a level medallion, an XP groove in the top
+ * molding, a floating hover-info plaque, the zone name and the fading message
+ * log above the bar on the left. The world stays visible around the ornaments.
+ *
+ * Static chrome is one cached sprite (hud_frame.js); per frame only the globe
+ * liquid, bars, slot contents, text and button states are drawn.
  */
 import { drawItemGlyph } from '../sprites.js';
-import { mix } from '../draw_util.js';
+import { mix, RENDER_SCALE } from '../draw_util.js';
 import { uiLayout, slotRect, columnButtonRect } from './layout.js';
+import { blitSprite, chromeSprite, chromeSig, roundRectPath, metal, trimStroke } from './chrome.js';
+import { hudFrameSprite, medallionSprite } from './hud_frame.js';
 import {
-  palette, str, drawPanel, drawButton, drawBar, drawGlobe, drawText, drawSlot, drawItemInRect, drawSkillIcon,
-  registerHit, pointInRect, rarityColor, fontAt, wrapText, fillRect,
+  palette, str, drawButton, drawBar, drawGlobe, drawText, drawSlot, drawItemInRect, drawSkillIcon,
+  registerHit, pointInRect, rarityColor, fontAt, wrapText,
 } from './widgets.js';
 import { ensureUi, bridge, call, hotkeyNames, isOpen, skillDef, focusMonster } from './state.js';
 
@@ -18,23 +25,28 @@ const LEFT_BUTTONS = [
   { id: 'character', key: 'character', fallback: 'Character', hotkey: 'C' },
   { id: 'quests', key: 'quests', fallback: 'Quests', hotkey: 'Q' },
   { id: 'automap', key: 'map', fallback: 'Map', hotkey: 'Tab' },
-  { id: 'menu', key: 'menu', fallback: 'Menu', hotkey: 'Esc' },
 ];
 const RIGHT_BUTTONS = [
   { id: 'inventory', key: 'inventory', fallback: 'Inventory', hotkey: 'I' },
   { id: 'skills', key: 'skills', fallback: 'Skills', hotkey: 'S' },
+  { id: 'menu', key: 'menu', fallback: 'Menu', hotkey: 'Esc' },
 ];
-const GLOBE_LABEL_DY = 10;
-const GLOBE_VALUE_SIZE = 12;
+const GLOBE_LABEL_DY = 11;
+const GLOBE_VALUE_SIZE = 14;
+const TAB_TEXT = 10;
+const MEDALLION_TEXT = 13;
+const TICK_MS = 50; // globe animation runs on wall-clock time in tick units (smooth between ticks)
 const XP_LEVEL_SIZE = 11;
 const BELT_LABEL_SIZE = 9;
 const COUNT_SIZE = 10;
+const SLOT_LABEL_IN = 4; // slot number / hotkey name sits inside the well, clear of the bevel
 const INFO_LINE_H = 15;
 const INFO_SIZE = 13;
 const INFO_HP_BAR_W = 120;
 const INFO_HP_BAR_H = 6;
 const GOLD_ICON = 14;
 const MSG_SIZE = 12;
+const MSG_MIN_W = 160;
 const SKILL_LABEL_SIZE = 10;
 const MANA_SHIELD_TINT = '#ffd27a';
 const TOP_EDGE = 2;
@@ -84,8 +96,10 @@ export function drawHud(ctx, game) {
   const mx = mouse ? mouse.x : -1;
   const my = mouse ? mouse.y : -1;
 
-  drawPanel(ctx, L.hud, { game });
+  blitSprite(ctx, hudFrameSprite(pal), 0, 0);
   registerHit(game, L.hud, { kind: 'hud' });
+  registerHit(game, L.lifeFrame, { kind: 'hud' });
+  registerHit(game, L.manaFrame, { kind: 'hud' });
   drawXpBar(ctx, game, p);
   drawMessages(ctx, game);
 
@@ -95,20 +109,21 @@ export function drawHud(ctx, game) {
   const mp = p ? Math.max(0, p.mp || 0) : 0;
   const mpMax = p ? Math.max(1, p.mpMax || 1) : 1;
   const shield = p && p.state && p.state.manaShield;
-  drawGlobe(ctx, L.lifeGlobe.cx, L.lifeGlobe.cy, L.lifeGlobe.r, hp / hpMax, { color: pal.hp, tick: game.tick, game });
-  drawGlobe(ctx, L.manaGlobe.cx, L.manaGlobe.cy, L.manaGlobe.r, mp / mpMax, { color: pal.mp, tick: game.tick, game, tint: shield ? MANA_SHIELD_TINT : null });
+  const time = typeof performance !== 'undefined' ? performance.now() / TICK_MS : game.tick;
+  drawGlobe(ctx, L.lifeGlobe.cx, L.lifeGlobe.cy, L.lifeGlobe.r, hp / hpMax, { color: pal.lifeColor, tick: game.tick, time, game, frame: false });
+  drawGlobe(ctx, L.manaGlobe.cx, L.manaGlobe.cy, L.manaGlobe.r, mp / mpMax, { color: pal.manaColor, tick: game.tick, time: time + 97, game, tint: shield ? MANA_SHIELD_TINT : null, frame: false });
   const lifeRect = globeRect(L.lifeGlobe);
   const manaRect = globeRect(L.manaGlobe);
   registerHit(game, lifeRect, { kind: 'globe', stat: 'life' });
   registerHit(game, manaRect, { kind: 'globe', stat: 'mana' });
   const hpColor = hp <= 0 ? pal.danger : hp >= hpMax ? pal.gold : pal.text;
   drawText(ctx, `${Math.ceil(hp)}/${hpMax}`, L.lifeGlobe.cx, L.lifeGlobe.cy - GLOBE_LABEL_DY, { align: 'center', size: GLOBE_VALUE_SIZE, color: hpColor, game, weight: 'bold' });
-  drawText(ctx, str(game, 'life', 'Life'), L.lifeGlobe.cx, L.lifeGlobe.cy + GLOBE_LABEL_DY - 4, { align: 'center', size: 10, color: pal.text, game, alpha: 0.8 });
+  drawText(ctx, str(game, 'life', 'Life'), L.lifeGlobe.cx, L.lifeGlobe.cy + GLOBE_LABEL_DY - 5, { align: 'center', size: 10, color: pal.text, game, alpha: 0.85 });
   const mpColor = mp <= 0 ? pal.danger : mp >= mpMax ? pal.gold : pal.text;
   drawText(ctx, `${Math.ceil(mp)}/${mpMax}`, L.manaGlobe.cx, L.manaGlobe.cy - GLOBE_LABEL_DY, { align: 'center', size: GLOBE_VALUE_SIZE, color: mpColor, game, weight: 'bold' });
-  drawText(ctx, str(game, shield ? 'manaShield' : 'mana', shield ? 'Shield' : 'Mana'), L.manaGlobe.cx, L.manaGlobe.cy + GLOBE_LABEL_DY - 4, { align: 'center', size: 10, color: shield ? MANA_SHIELD_TINT : pal.text, game, alpha: 0.8 });
+  drawText(ctx, str(game, shield ? 'manaShield' : 'mana', shield ? 'Shield' : 'Mana'), L.manaGlobe.cx, L.manaGlobe.cy + GLOBE_LABEL_DY - 5, { align: 'center', size: 10, color: shield ? MANA_SHIELD_TINT : pal.text, game, alpha: 0.85 });
 
-  // --- buttons ---
+  // --- panel-button tabs ---
   LEFT_BUTTONS.forEach((b, i) => drawPanelButton(ctx, game, columnButtonRect(L.leftButtons, i), b, mx, my));
   RIGHT_BUTTONS.forEach((b, i) => drawPanelButton(ctx, game, columnButtonRect(L.rightButtons, i), b, mx, my));
   if (p && p.statPoints > 0 && !ui.right && !ui.vendor) {
@@ -117,10 +132,11 @@ export function drawHud(ctx, game) {
     registerHit(game, r, { kind: 'levelUp' });
   }
 
-  // --- gold ---
-  drawItemGlyph(ctx, L.goldText.x + GOLD_ICON / 2, L.goldText.y + 8, { glyph: 'coin', color: pal.gold, color2: mix(pal.gold, '#000', 0.4) }, GOLD_ICON);
-  drawText(ctx, formatNumber(p ? p.gold || 0 : 0), L.goldText.x + GOLD_ICON + 5, L.goldText.y + 1, { color: pal.gold, size: 13, game, maxW: L.goldText.w - GOLD_ICON - 4 });
-  drawText(ctx, str(game, 'gold', 'Gold'), L.goldText.x, L.goldText.y + 20, { color: pal.textDim, size: 10, game });
+  // --- gold plaque ---
+  const G = L.goldText;
+  drawItemGlyph(ctx, G.x + 6 + GOLD_ICON / 2, G.y + 10, { glyph: 'coin', color: pal.gold, color2: mix(pal.gold, '#000', 0.4) }, GOLD_ICON);
+  drawText(ctx, formatNumber(p ? p.gold || 0 : 0), G.x + 8 + GOLD_ICON, G.y + 3, { color: pal.gold, size: 12, game, weight: 'bold', maxW: G.w - GOLD_ICON - 10 });
+  drawText(ctx, str(game, 'gold', 'Gold'), G.x + G.w / 2, G.y + 21, { align: 'center', color: pal.textDim, size: 10, game, maxW: G.w - 6 });
 
   drawBelt(ctx, game, p, mx, my);
   drawHotkeys(ctx, game, p, mx, my);
@@ -134,7 +150,7 @@ function globeRect(g) {
 
 function drawPanelButton(ctx, game, rect, b, mx, my) {
   const label = str(game, b.key, b.fallback);
-  drawButton(ctx, rect, label, { game, hover: pointInRect(mx, my, rect), active: isOpen(game, b.id), size: 11 });
+  drawButton(ctx, rect, label, { game, hover: pointInRect(mx, my, rect), active: isOpen(game, b.id), size: TAB_TEXT });
   registerHit(game, rect, { kind: 'hudButton', id: b.id, label, hotkey: b.hotkey });
 }
 
@@ -147,24 +163,31 @@ function drawXpBar(ctx, game, p) {
   const ratio = next === null ? 1 : (xp - prev) / Math.max(1, next - prev);
   drawBar(ctx, L.xpBar, ratio, { color: next === null ? pal.gold : pal.xp, game });
   registerHit(game, { x: L.xpBar.x, y: L.xpBar.y - TOP_EDGE, w: L.xpBar.w, h: L.xpBar.h + TOP_EDGE * 2 }, { kind: 'xpBar', xp, prev, next });
-  const lvl = `${str(game, 'level', 'Level')} ${p.level || 1}`;
-  drawText(ctx, lvl, L.xpBar.x - 6, L.xpBar.y - 4, { align: 'right', size: XP_LEVEL_SIZE, color: pal.xp, game });
+  // level medallion over the groove's centre
+  const M = L.medallion;
+  blitSprite(ctx, medallionSprite(pal), M.cx, M.cy);
+  drawText(ctx, String(p.level || 1), M.cx, M.cy - MEDALLION_TEXT / 2 - 0.5, { align: 'center', size: MEDALLION_TEXT, color: pal.gold, game, weight: 'bold' });
+  registerHit(game, { x: M.cx - M.w / 2, y: M.cy - M.h / 2, w: M.w, h: M.h }, { kind: 'xpBar', xp, prev, next });
   if (game.level && typeof game.level.depth === 'number') {
-    const name = levelName(game);
-    drawText(ctx, name, L.xpBar.x + L.xpBar.w + 6, L.xpBar.y - 4, { size: XP_LEVEL_SIZE, color: pal.textDim, game, maxW: 150 });
+    // Zone name sits in the top-right corner of the view, clear of the globe ornaments
+    // (the character level is already shown on the medallion).
+    const Z = L.zoneName;
+    drawText(ctx, levelName(game), Z.x, Z.y, { align: 'right', size: 13, color: pal.text, game, maxW: 260, alpha: 0.85 });
   }
-  // Permadeath badge: a constant reminder that this hero's save dies with them, in the empty
-  // strip between the left button column and the info box.
+  // Permadeath badge under the zone name: a constant reminder that this hero's save dies with them.
   if (game.flags && game.flags.hardcore) {
-    const lb = L.leftButtons;
-    const x0 = lb.x + lb.w + 8;
-    const r = { x: x0, y: lb.y, w: Math.max(40, L.infoBox.x - 8 - x0), h: 18 };
+    const Z = L.zoneName;
+    const label = str(game, 'hardcoreBadge', 'PERMADEATH');
+    const w = Math.min(160, label.length * 7 + 16);
+    const r = { x: Z.x - w, y: Z.y + 20, w, h: 16 };
     ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.strokeStyle = pal.danger;
     ctx.lineWidth = 1;
     ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
     ctx.restore();
-    drawText(ctx, str(game, 'hardcoreBadge', 'PERMADEATH'), r.x + r.w / 2, r.y + 3, { align: 'center', size: 10, weight: 'bold', color: pal.danger, game, maxW: r.w - 6 });
+    drawText(ctx, label, r.x + r.w / 2, r.y + 3, { align: 'center', size: 10, weight: 'bold', color: pal.danger, game, maxW: r.w - 6 });
   }
 }
 
@@ -190,9 +213,9 @@ function drawBelt(ctx, game, p, mx, my) {
     drawSlot(ctx, r, { game, item, hover, valid });
     if (item) {
       drawItemInRect(ctx, item, r);
-      if (item.count > 1) drawText(ctx, String(item.count), r.x + r.w - 2, r.y + r.h - 12, { align: 'right', size: COUNT_SIZE, color: pal.text, game });
+      if (item.count > 1) drawText(ctx, String(item.count), r.x + r.w - SLOT_LABEL_IN, r.y + r.h - 13, { align: 'right', size: COUNT_SIZE, color: pal.text, game });
     }
-    drawText(ctx, String(i + 1), r.x + 2, r.y + 1, { size: BELT_LABEL_SIZE, color: pal.textDim, game });
+    drawText(ctx, String(i + 1), r.x + SLOT_LABEL_IN, r.y + SLOT_LABEL_IN - 1, { size: BELT_LABEL_SIZE, color: pal.textDim, game, alpha: 0.8 });
     registerHit(game, r, { kind: 'belt', index: i, item });
   }
 }
@@ -217,7 +240,7 @@ function drawHotkeys(ctx, game, p, mx, my) {
     const hover = pointInRect(mx, my, r);
     drawSlot(ctx, r, { game, hover, highlight: skillId && skillId === selected ? pal.accent : null });
     if (def) drawSkillIcon(ctx, { x: r.x + 3, y: r.y + 3, w: r.w - 6, h: r.h - 6 }, def.look, { game, disabled: !canCast(game, p, skillId) });
-    drawText(ctx, names[i], r.x + 2, r.y + 1, { size: BELT_LABEL_SIZE, color: pal.textDim, game });
+    drawText(ctx, names[i], r.x + SLOT_LABEL_IN, r.y + SLOT_LABEL_IN - 1, { size: BELT_LABEL_SIZE, color: pal.textDim, game, alpha: 0.8 });
     registerHit(game, r, { kind: 'hotkey', index: i, skillId, name: def ? def.name : null, hotkey: names[i] });
   }
 }
@@ -249,13 +272,25 @@ function drawSkillButton(ctx, game, p, mx, my) {
   const skillId = (p && p.selectedSkill) || game.ui.selectedSkill || null;
   const def = skillDef(game, skillId);
   const hover = pointInRect(mx, my, r);
-  drawSlot(ctx, r, { game, hover, highlight: def ? mix(pal.panelBorder, pal.accent, SELECTED_T) : null });
+  drawSlot(ctx, r, { game, hover, highlight: def ? mix(pal.trim, pal.accent, SELECTED_T) : null });
   if (def) {
     drawSkillIcon(ctx, { x: r.x + 4, y: r.y + 4, w: r.w - 8, h: r.h - 8 }, def.look, { game, disabled: !canCast(game, p, skillId) });
   } else {
     drawText(ctx, str(game, 'noSkill', 'none'), r.x + r.w / 2, r.y + r.h / 2 - 6, { align: 'center', size: 10, color: pal.textDim, game });
   }
-  drawText(ctx, def ? def.name : str(game, 'rightClick', 'RMB'), r.x + r.w / 2, r.y + r.h + 4, { align: 'center', size: SKILL_LABEL_SIZE, color: def ? pal.text : pal.textDim, game, maxW: 70 });
+  // name on a dark pill above the bezel so it reads over the trim
+  const label = def ? def.name : str(game, 'rightClick', 'RMB');
+  const lw = Math.min(82, label.length * SKILL_LABEL_SIZE * 0.56 + 12);
+  const ly = r.y - SKILL_LABEL_SIZE - 9;
+  ctx.save();
+  ctx.fillStyle = 'rgba(6,6,10,0.82)';
+  ctx.strokeStyle = pal.metalEdge || pal.trim;
+  ctx.lineWidth = 0.75;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(r.x + r.w / 2 - lw / 2, ly - 2, lw, SKILL_LABEL_SIZE + 6, 4); else ctx.rect(r.x + r.w / 2 - lw / 2, ly - 2, lw, SKILL_LABEL_SIZE + 6);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+  drawText(ctx, label, r.x + r.w / 2, ly, { align: 'center', size: SKILL_LABEL_SIZE, color: def ? pal.text : pal.textDim, game, maxW: 76 });
   registerHit(game, r, { kind: 'skillButton', skillId, name: def ? def.name : null });
 }
 
@@ -353,22 +388,59 @@ function uiHoverLines(game, hu) {
 function drawInfoBox(ctx, game) {
   const pal = palette(game);
   const r = uiLayout.infoBox;
-  fillRect(ctx, r, '#000', 0.45);
-  ctx.strokeStyle = mix(pal.panel, pal.panelBorder, 0.6);
-  ctx.lineWidth = 1;
-  ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
   const lines = infoLines(game).slice(0, 3);
-  if (lines.length === 0) return;
+  if (lines.length === 0) return; // nothing hovered: the world shows through
+  blitSprite(ctx, infoPlaqueSprite(pal, r.w, r.h), r.x, r.y);
   const totalH = lines.length * INFO_LINE_H;
   let y = r.y + (r.h - totalH) / 2;
   for (const ln of lines) {
     if (typeof ln.bar === 'number') {
       drawBar(ctx, { x: r.x + (r.w - INFO_HP_BAR_W) / 2, y: y + 4, w: INFO_HP_BAR_W, h: INFO_HP_BAR_H }, ln.bar, { color: ln.color, game });
     } else {
-      drawText(ctx, ln.text, r.x + r.w / 2, y, { align: 'center', size: INFO_SIZE, color: ln.color || pal.text, game, maxW: r.w - 12 });
+      drawText(ctx, ln.text, r.x + r.w / 2, y, { align: 'center', size: INFO_SIZE, color: ln.color || pal.text, game, maxW: r.w - 24 });
     }
     y += INFO_LINE_H;
   }
+}
+
+/** Floating info plaque: smoked-glass body, thin metal frame, trim-tipped ends. */
+function infoPlaqueSprite(pal, w, h) {
+  return chromeSprite(`infoplaque|${chromeSig(pal)}|${w}x${h}`, w + 20, h + 12, 10, 6, (c) => {
+    const body = (k) => roundRectPath(k, 0, 0, w, h, 6);
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,0.6)';
+    c.shadowBlur = 8 * RENDER_SCALE;
+    const g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, 'rgba(0,0,0,0.55)');
+    g.addColorStop(1, 'rgba(0,0,0,0.78)');
+    c.fillStyle = g;
+    c.beginPath();
+    body(c);
+    c.fill();
+    c.restore();
+    const frame = (k) => {
+      roundRectPath(k, 0, 0, w, h, 6);
+      roundRectPath(k, 2, 2, w - 4, h - 4, 4.5);
+    };
+    metal(c, frame, { x: 0, y: 0, w, h }, pal, { rule: 'evenodd', shadow: 0, bevel: 0.6, texture: false, light: 0.4 });
+    for (const s of [-1, 1]) {
+      const x = s < 0 ? 0 : w;
+      const tip = (k) => {
+        k.moveTo(x, h / 2 - 8);
+        k.lineTo(x + s * 7, h / 2);
+        k.lineTo(x, h / 2 + 8);
+        k.closePath();
+      };
+      metal(c, tip, { x: Math.min(x, x + s * 7), y: h / 2 - 8, w: 7, h: 16 }, pal, { shadow: 2, texture: false, bevel: 0.6, light: 0.5 });
+      trimStroke(c, (k) => {
+        k.moveTo(x - s * 9, h / 2 - 4);
+        k.lineTo(x - s * 6, h / 2);
+        k.lineTo(x - s * 9, h / 2 + 4);
+        k.lineTo(x - s * 12, h / 2);
+        k.closePath();
+      }, pal, 0.7);
+    }
+  });
 }
 
 function drawMessages(ctx, game) {
@@ -376,13 +448,18 @@ function drawMessages(ctx, game) {
   const L = uiLayout.messages;
   const msgs = ui.messages.slice(-L.lines);
   const font = fontAt(game, MSG_SIZE);
+  // keep the log readable beside an open left panel / vendor instead of under it
+  const x = ui.vendor ? uiLayout.vendor.x + uiLayout.vendor.w + L.x : ui.left ? uiLayout.leftPanel.x + uiLayout.leftPanel.w + L.x : L.x;
+  const rightEdge = uiLayout.viewW - (ui.right ? uiLayout.rightPanel.w : 0) - L.x;
+  if (rightEdge - x < MSG_MIN_W) return; // panels cover both sides: no room for the log
+  const wrapW = Math.min(uiLayout.leftPanel.w + 40, rightEdge - x);
   let y = L.y;
   for (let i = msgs.length - 1; i >= 0; i--) {
     const m = msgs[i];
     const alpha = Math.max(0, Math.min(1, m.ttl / L.fade));
-    const lines = wrapText(ctx, m.text, uiLayout.leftPanel.w + 40, font);
+    const lines = wrapText(ctx, m.text, wrapW, font);
     y -= lines.length * L.lineH;
-    lines.forEach((ln, j) => drawText(ctx, ln, L.x, y + j * L.lineH, { size: MSG_SIZE, color: m.color, alpha, game }));
+    lines.forEach((ln, j) => drawText(ctx, ln, x, y + j * L.lineH, { size: MSG_SIZE, color: m.color, alpha, game }));
   }
 }
 

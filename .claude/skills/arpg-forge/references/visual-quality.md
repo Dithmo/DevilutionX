@@ -162,9 +162,72 @@ Faces are shaded by side: top ×1.0, left ×0.80, right ×0.56.
 **Known issue:** taller walls hide more objects behind them. Fade walls that cover chests and
 items near the player, not just the player.
 
-## 5. Actors (src/render/draw_actor.js, draw_volume.js)
+## 5. Actors, objects, items (src/render/draw_actor.js, draw_volume.js, draw_objects.js, draw_items.js)
 
-_(Filled in from the actors pass.)_
+Every colour and noun comes from `look` in theme data. The code supplies neutral defaults.
+
+**Five techniques that make procedural shapes read as painted art:**
+1. **Volumes, not flat fills.** Every part is a shaded primitive lit from one key light at the
+   upper left, whatever way the sprite faces:
+   - tapered capsules for limbs and hafts;
+   - elliptic frustums for torsos, robes and barrels;
+   - spheres for heads and pauldrons;
+   - iso blocks for crates and altars.
+2. **Ink and rim** (`inked(c, paint)`). Paint the sprite into a scratch layer. Add a rim light
+   on the lit edge: the silhouette minus itself, shifted away from the light. Then stamp the
+   silhouette in dark ink at 8 offsets behind it. **This single pass is most of the look.**
+3. **Contact shadow.** A soft radial ellipse under every sprite.
+4. **Restrained highlights.** `hiFor(color)` scales highlights down for bright colours so
+   whites don't blow out. Shade by mixing toward black or white so the hue stays.
+5. **Glow is separate from paint.** Emissive parts (visors, neon trim, flames, orbs) call
+   `addGlow` so they survive the lighting multiply. Actors register glows only when the caller
+   passes `opts.light`; the UI never does, so menus don't double-light.
+
+**Projected puppet.** One description of a humanoid serves all 8 directions:
+- Actor space is (s = right, f = forward, z = up). `makeView(dir)` builds the facing axes, and
+  `proj()` maps a point to screen with the ground squashed 2:1, plus a depth value.
+- Poses are targets: feet, hands, torso tilt and twist, and lunge. Two-bone IK places knees
+  and elbows.
+- Each stance comes from the weapon class (blade, heavy, pole, rifle, pistol, bow, claws), with
+  keyframe tables for attacks.
+- Parts are pushed to a list with their projected depth, sorted and painted back to front.
+- `decal()` maps 2D detail onto a body surface: visor slits, seams, tabards, emblems.
+- Humanoids are about 1.5× the old height (about 64px to the crown). Height plus
+  silhouette props (pauldrons, helm, cloak, weapon) are what make classes recognisable.
+- Special bodies have their own rigs: a crawler with 4, 6 or 8 legs, a flier with membrane or
+  rotor wings, a translucent blob, a turret.
+
+**Actor look fields** (all optional; defaults come from the silhouette):
+
+| Field | Values |
+|---|---|
+| `weapon` | sword, katana, greatsword, dagger, axe, hammer, mace, spear, staff, wand, pistol, rifle, bow, claws, none. Item glyph names are accepted too. |
+| `offhand` | shield, buckler, orb, pistol, dagger, none |
+| `helm` | full, visor, open, hood, horned, crest, bare |
+| `armor` | plate, light, cloth, none |
+| `cloak` | none, short, long, tattered |
+| `glow` | `true` (uses trimColor) or a colour |
+| `cloakColor`, `metalColor`, `skinColor`, `accentColor`, `underColor` | colours |
+| `legs` | 4, 6 or 8 (crawler) |
+| `wings` | membrane, rotor (flier) |
+
+**Objects** (`drawObject(..., time)`):
+- Shapes, chosen by `look.shape`: box, slab, barrel, crate, rack, altar, brazier, lamp, post,
+  banner, lever, plate, basin, well, stand, stairs, portal.
+- `color` is the body and `color2` the accent (bands, runes, flame, cloth).
+- Animated parts are cached per frame with bounded counts: brazier flames 8 frames, portal
+  swirl 16 frames.
+- Door leaves are `DOOR_H` (48) tall; the wall drawer adds the lintel above them.
+
+**Items and missiles:**
+- Item glyphs use the same volume, ink and rim pipeline and read at 20, 24 and 48px.
+- A bright, saturated `color2` counts as emissive and gets a halo.
+- Missiles are cached per (shape, colour, size, direction, phase), with shapes for bolts, orbs,
+  shards, a flat ground ring, arrows and fireballs.
+
+**Model sheet.** `tools/model_sheet.html?theme=<id>&part=actors|monsters|objects|items` renders
+every class, NPC, monster, object state, glyph and missile on one page. Screenshot it after
+any look change; that is the fastest way to catch a broken silhouette.
 
 ## 6. HUD (src/render/ui/chrome.js, hud_frame.js)
 
@@ -234,3 +297,23 @@ separate because it sits over the XP fill.
   by `RENDER_SCALE` when drawing at 2×.
 - Text over trim needs a dark backing pill.
 - Keep the zone name in a screen corner, clear of the ornaments.
+
+## 7. How to run a visual upgrade
+
+What worked for Neon Undertow:
+1. **Name the gap first.** Compare the screenshot with the target image and list what is
+   missing: light, material, atmosphere, detail, framing. It is never resolution alone.
+2. **Foundation before art.** Do the 2× backing store, the lighting pass and atmosphere first,
+   because every later layer depends on them.
+3. **Then split by layer.** Environment, actors and HUD own disjoint files, so they can be
+   built in parallel and merged with plain patches. Agree the shared constants up front
+   (`WALL_H`, `DOOR_H`), and only one owner may change each.
+4. **Theme-only knobs.** Every new visual setting is an optional theme key with a default.
+   Check both shipped themes; the engine must stay setting-free.
+5. **Verify each layer:**
+   - before/after screenshots at the same seed and depths;
+   - the model sheet;
+   - `smoke_test --quick`;
+   - an fps check (the whole upgrade cost under 1 fps headless).
+6. **Integration pass.** Check that text on the HUD doesn't collide with ornaments, that class
+   cards pass the full `look`, and that taller walls don't hide loot.

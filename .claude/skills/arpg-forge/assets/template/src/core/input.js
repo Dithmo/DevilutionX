@@ -78,8 +78,10 @@ export function createInput(canvas, camera) {
     /** Convert client (CSS pixel) coordinates to logical canvas coordinates. */
     toLogical(clientX, clientY) {
       const r = canvas.getBoundingClientRect();
-      const scaleX = r.width ? canvas.width / r.width : 1;
-      const scaleY = r.height ? canvas.height / r.height : 1;
+      const lw = canvas.logicalW || canvas.width;
+      const lh = canvas.logicalH || canvas.height;
+      const scaleX = r.width ? lw / r.width : 1;
+      const scaleY = r.height ? lh / r.height : 1;
       return { x: (clientX - r.left) * scaleX, y: (clientY - r.top) * scaleY };
     },
 
@@ -94,7 +96,7 @@ export function createInput(canvas, camera) {
     const p = input.toLogical(e.clientX, e.clientY);
     input.mouse.x = p.x;
     input.mouse.y = p.y;
-    input.mouse.inside = p.x >= 0 && p.y >= 0 && p.x < canvas.width && p.y < canvas.height;
+    input.mouse.inside = p.x >= 0 && p.y >= 0 && p.x < (canvas.logicalW || canvas.width) && p.y < (canvas.logicalH || canvas.height);
   }
 
   function onMouseDown(e) {

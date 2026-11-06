@@ -50,12 +50,12 @@ Work through the theme files in this order; later files reference ids from earli
 
 | Order | File | What to write | Minimum size |
 |---|---|---|---|
-| 1 | `meta.js`, `palette.js`, `strings.js` | title, tagline, UI colours, vocabulary (life→"vitals", gold→"credits"…), title-screen words (`chooseClass`, `start`, `load`, `menuHint`, `strShort`…`vitShort`) | — |
-| 2 | `tilesets.js`, `world.js` | 4 tilesets (palettes + generator each), 4 tiers with depth ranges, the hub layout and NPC placements | 4 tilesets, 4 tiers, 16 depths |
-| 3 | `classes.js` | 3 classes mapped to melee / ranged / caster with setting-native names, an `epithet`, a `look.accent` colour, stat lines, start kits, skill pools | 3 |
+| 1 | `meta.js`, `palette.js`, `strings.js` | title, tagline, UI colours and HUD metal (`metal`, `trim`, `trimGlow`, `ornament`), vocabulary (life→"vitals", gold→"credits"…), title-screen words (`chooseClass`, `start`, `load`, `menuHint`, `strShort`…`vitShort`) | — |
+| 2 | `tilesets.js`, `world.js` | 4 tilesets (palettes + generator + an `art` block: floor/wall style, lamp kind and colour, wall decor), 4 tiers with depth ranges, the hub layout, `town.art` and NPC placements | 4 tilesets, 4 tiers, 16 depths |
+| 3 | `classes.js` | 3 classes mapped to melee / ranged / caster with setting-native names, an `epithet`, a `look` with accent colour, weapon, helm, armour and cloak, stat lines, start kits, skill pools | 3 |
 | 4 | `skills.js` | 16 skills across the archetypes (bolt, pierce, nova, chain, wall, groundAoe, heal, buff, blink, summon, homing, multishot, melee, townPortal, identify) | 16 |
 | 5 | `items.js` | bases (≥15 weapons, ≥11 armour, ring, amulet), ≥25 prefixes, ≥25 suffixes, ≥8 uniques, consumables incl. a scroll and tome per skill, quest items | see counts |
-| 6 | `monsters.js` | 16 silhouettes × 2–3 variants across 4 tiers, each with an AI archetype; 6 uniques including the 4 tier bosses | ≈40 + 6 |
+| 6 | `monsters.js` | 16 silhouettes × 2–3 variants across 4 tiers, each with an AI archetype and a `look` (weapon, helm, armour, glow, legs/wings); 6 uniques including the 4 tier bosses | ≈40 + 6 |
 | 7 | `objects.js` | 12 object types, ≥12 random-altar effects with flavour text | 12 + 12 |
 | 8 | `npcs.js`, `quests.js` | 6 NPCs (healer, smith, arcanist, questgiver, gossip, wanderer) with 3–5 lines each; 6 quests covering killBoss, fetch, clearArea, collectN, findNpc + a main line | 6 + 6 |
 | 9 | `flavor.js`, `sfx.js` | death lines, tips, intro/outro, `heroNames` for the random-name button, synth descriptors | 8 / 12 / 4+3 / 8 / 22 |
@@ -68,6 +68,11 @@ Rules of thumb while writing:
   the buttons (`start: 'Set Sail'`, `chooseClass: 'Sign the Articles'`). In testing, a run
   without this skill that put that care into its class screen came out looking better than a
   run with the skill that left the defaults.
+- The look is theme data too. The engine draws every sprite in code with a lighting pass,
+  painted materials, lit decor and an ornate HUD, so a theme mostly picks styles and colours:
+  `tileset.art` (stone vs concrete/metal, torches vs neon), actor `look` fields, and palette
+  metal and trim. `references/visual-quality.md` lists every knob with its default and the
+  recipes behind the look. Read it when the user wants it to look better, or sends a target image.
 - Keep every number inside the ranges the default theme uses unless `references/systems/`
   gives you a reason. The default numbers are the genre's proven curve.
 - Names are the setting; mechanics are the genre. Rename "mana" to "charge" freely; do not
@@ -109,6 +114,8 @@ list, and implement the chunks in order. The chunk lists are dependency-sorted f
    player could not do; fix the theme or engine, not the test.
 3. **Look at the screenshots** (open the PNGs). Check: town readable, each tileset looks like
    its tier, HUD text legible, inventory items visible, a boss arena exists on the final depth.
+   Open `tools/model_sheet.html?theme=<id>&part=actors|monsters|objects|items` and screenshot
+   it: every class, monster, object and item on one page, so a broken look shows at a glance.
 4. Play it for two minutes yourself through Playwright if you have time: click to move, kill
    something, pick up loot, open the inventory, buy a potion, descend. Fix what feels wrong.
    `window.__game` (documented in `docs/CONTRACTS.md`) gives you `step`, `state`, `teleport`,
@@ -132,6 +139,7 @@ and the two or three things you would add next (more quests, real art, multiplay
 ## Reference index
 
 - `references/theming-guide.md` — IP hygiene, archetype mapping table, procedural art/sound, done-checklist.
+- `references/visual-quality.md` — the lighting, material, decor, actor and HUD recipes, every visual theme knob, and how to run a visual upgrade against a target image.
 - `references/systems/00-overview.md` — the 70 systems, dependency spine, content budget.
 - `references/systems/01-core-engine-rendering.md` — loop, input, RNG, A*, iso renderer, lighting, FOV, automap, audio.
 - `references/systems/02-levels-objects-quests.md` — the four generators, themed rooms, objects, altars, quests, NPCs, vendors, portals.

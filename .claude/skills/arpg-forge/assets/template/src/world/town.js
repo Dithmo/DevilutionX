@@ -131,7 +131,7 @@ export function buildTown(game) {
   level.name = town.name;
   level.seed = rng.seed;
   level.visited = true;
-  level.palette = paletteFor({ floors: town.groundColors, walls: town.buildingColors, accent: town.accent, doorColor: town.buildingColors[0], voidColor: '#000000', lightTint: '#ffffff' }, game.balance?.levels?.palette || LEVELS.palette);
+  level.palette = paletteFor({ floors: town.groundColors, walls: town.buildingColors, accent: town.accent, doorColor: town.doorColor || town.buildingColors[0], voidColor: '#000000', lightTint: '#ffffff', art: town.art, decor: town.decorKinds }, game.balance?.levels?.palette || LEVELS.palette);
   level.explored.fill(1);
   level.light.fill(MAX_LIGHT);
   level.ambientLight = MAX_LIGHT;
